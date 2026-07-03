@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>人生時鐘 · 技術解析教學</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Noto+Serif+TC:wght@300;400;600&family=Noto+Sans+TC:wght@300;400&family=Oswald:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM
+═══════════════════════════════════════════ */
+:root {
+  --bg:        #0d1208;
+  --bg2:       #121a0a;
+  --bg3:       #1a2410;
+  --surface:   #1e2d14;
+  --surface2:  #243516;
+  --border:    rgba(100,180,40,0.15);
+  --border2:   rgba(100,180,40,0.28);
+  --green:     #6db33f;
+  --green2:    #8ed450;
+  --green-dim: rgba(109,179,63,0.5);
+  --amber:     #e8a020;
+  --amber-dim: rgba(232,160,32,0.6);
+  --cyan:      #40d0c0;
+  --red:       #e05040;
+  --text:      #d4e8b8;
+  --text2:     #8aaa70;
+  --text3:     #556644;
+  --code-bg:   #0a1506;
+  --code-kw:   #8ed450;     /* keyword */
+  --code-fn:   #60d0f0;     /* function */
+  --code-str:  #e8a020;     /* string */
+  --code-num:  #d080f0;     /* number */
+  --code-cmt:  #4a6035;     /* comment */
+  --code-var:  #f0d080;     /* variable */
+  --code-prop: #80d0a0;     /* property */
+  --num:       #2a3e1a;
+  --chapter-w: 860px;
+  --sidebar-w: 220px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-weight: 300;
+  line-height: 1.8;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+/* ═══════════════════════════════════════════
+   SIDEBAR NAV
+═══════════════════════════════════════════ */
+#sidebar {
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-w); height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 100; overflow-y: auto;
+  padding: 0 0 32px;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-zh {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 14px; font-weight: 600;
+  color: var(--green2);
+  letter-spacing: 4px; display: block;
+}
+.sidebar-logo .logo-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--text3); display: block;
+  margin-top: 4px; text-transform: uppercase;
+}
+
+.nav-section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--text3);
+  padding: 20px 20px 6px;
+}
+
+.nav-link {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 20px;
+  text-decoration: none;
+  font-size: 12px; color: var(--text2);
+  border-left: 2px solid transparent;
+  transition: all 0.2s;
+  line-height: 1.5;
+}
+.nav-link:hover, .nav-link.active {
+  color: var(--green2);
+  border-left-color: var(--green);
+  background: rgba(109,179,63,0.05);
+}
+.nav-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--text3);
+  flex: none; margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════ */
+#main {
+  margin-left: var(--sidebar-w);
+  max-width: calc(var(--sidebar-w) + var(--chapter-w) + 80px);
+}
+
+/* ── Hero ── */
+.hero {
+  position: relative; overflow: hidden;
+  padding: 80px 60px 72px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg) 0%, #0f1e08 60%, #152208 100%);
+}
+
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 80% 50%, rgba(80,180,30,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--green); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-tag::before {
+  content: ''; width: 24px; height: 1px; background: var(--green);
+}
+
+.hero-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(36px, 5vw, 58px);
+  font-weight: 500; line-height: 1.1;
+  color: #fff; letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.hero-title span { color: var(--green2); }
+
+.hero-subtitle {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 16px; font-weight: 300;
+  color: var(--text2); letter-spacing: 4px;
+  margin-bottom: 32px;
+}
+
+.hero-desc {
+  font-size: 14px; color: var(--text2);
+  max-width: 560px; line-height: 2;
+  margin-bottom: 36px;
+}
+
+.hero-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  padding: 4px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--green-dim);
+  background: rgba(109,179,63,0.05);
+}
+
+.hero-preview {
+  position: absolute; right: 60px; top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════
+   CHAPTER
+═══════════════════════════════════════════ */
+.chapter {
+  padding: 72px 60px;
+  border-bottom: 1px solid var(--border);
+}
+.chapter:last-child { border-bottom: none; }
+
+.chapter-header {
+  margin-bottom: 48px;
+}
+
+.chapter-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 10px;
+}
+.chapter-num::after {
+  content: ''; flex: 1; max-width: 60px; height: 1px; background: var(--border2);
+}
+
+.chapter-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(26px, 3.5vw, 38px);
+  font-weight: 500; color: #fff;
+  letter-spacing: 1px; line-height: 1.2;
+  margin-bottom: 12px;
+}
+.chapter-title em {
+  font-style: normal; color: var(--green2);
+}
+
+.chapter-desc {
+  font-size: 14px; color: var(--text2);
+  max-width: 620px; line-height: 2;
+  padding-left: 2px;
+}
+
+/* ── Section within chapter ── */
+.section {
+  margin-bottom: 56px;
+}
+.section:last-child { margin-bottom: 0; }
+
+.section-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px; font-weight: 300;
+  color: var(--green2); letter-spacing: 2px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title .s-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text3);
+}
+
+p {
+  font-size: 14px; color: var(--text2);
+  line-height: 2; margin-bottom: 14px;
+}
+p:last-child { margin-bottom: 0; }
+
+strong { color: var(--text); font-weight: 400; }
+em { color: var(--amber); font-style: normal; }
+
+/* ── Code blocks ── */
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 20px 0;
+  overflow: hidden;
+}
+
+.code-header {
+  display: flex; align-items: center;
+  padding: 10px 16px;
+  background: rgba(100,180,40,0.05);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.code-dots { display: flex; gap: 5px; }
+.code-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.code-dots span:nth-child(1) { background: #e05040; }
+.code-dots span:nth-child(2) { background: var(--amber); }
+.code-dots span:nth-child(3) { background: var(--green); }
+.code-lang {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1.5px;
+  color: var(--text3); text-transform: uppercase;
+  margin-left: auto;
+}
+.code-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text3);
+}
+
+pre {
+  padding: 20px 22px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.85;
+  tab-size: 2;
+}
+
+/* Syntax highlighting */
+.kw  { color: var(--code-kw); }
+.fn  { color: var(--code-fn); }
+.str { color: var(--code-str); }
+.num { color: var(--code-num); }
+.cmt { color: var(--code-cmt); font-style: italic; }
+.vr  { color: var(--code-var); }
+.pr  { color: var(--code-prop); }
+.hl  { background: rgba(109,179,63,0.1); display: inline-block; width: 100%; border-left: 2px solid var(--green); padding-left: 4px; }
+
+/* ── Callout boxes ── */
+.callout {
+  border-left: 3px solid var(--green);
+  background: rgba(109,179,63,0.06);
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+  margin: 20px 0;
+}
+.callout.amber { border-color: var(--amber); background: rgba(232,160,32,0.06); }
+.callout.cyan  { border-color: var(--cyan);  background: rgba(64,208,192,0.06); }
+.callout.red   { border-color: var(--red);   background: rgba(224,80,64,0.06); }
+
+.callout-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--green); margin-bottom: 6px;
+}
+.callout.amber .callout-title { color: var(--amber); }
+.callout.cyan  .callout-title { color: var(--cyan); }
+.callout.red   .callout-title { color: var(--red); }
+
+.callout p { margin-bottom: 6px; font-size: 13px; }
+
+/* ── Key-Value pills ── */
+.kv-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0;
+}
+.kv {
+  display: flex; align-items: center; gap: 0;
+  border: 1px solid var(--border2); border-radius: 6px; overflow: hidden;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+.kv-key {
+  background: rgba(109,179,63,0.12);
+  padding: 4px 10px; color: var(--green2);
+}
+.kv-val {
+  padding: 4px 10px; color: var(--text2);
+}
+
+/* ── Demo canvas area ── */
+.demo-wrap {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+.demo-header {
+  display: flex; align-items: center; padding: 10px 16px;
+  background: rgba(64,208,192,0.05);
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--cyan);
+  letter-spacing: 2px; text-transform: uppercase;
+  gap: 8px;
+}
+.demo-header::before {
+  content: '▶'; font-size: 8px;
+}
+.demo-body {
+  padding: 24px;
+  display: flex; justify-content: center; align-items: center;
+  flex-direction: column; gap: 12px;
+}
+canvas.demo { border-radius: 6px; display: block; }
+.demo-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text3);
+  letter-spacing: 1px; text-align: center;
+}
+
+/* ── Two column ── */
+.two-col {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px; margin: 20px 0;
+}
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── Layer diagram ── */
+.layer-stack {
+  display: flex; flex-direction: column; gap: 4px;
+  margin: 20px 0;
+}
+.layer {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 18px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.layer-z {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text3);
+  min-width: 56px;
+}
+.layer-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--code-fn);
+}
+.layer-desc { color: var(--text2); font-size: 12px; }
+.layer.l0 { background: rgba(20,40,10,0.4); }
+.layer.l1 { background: rgba(30,55,15,0.4); margin-left: 8px; }
+.layer.l2 { background: rgba(40,70,20,0.4); margin-left: 16px; }
+
+/* ── Coord diagram ── */
+.coord-box {
+  background: #090f05;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 20px 0;
+  display: flex; justify-content: center;
+}
+
+/* ── Step list ── */
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 16px 0;
+}
+.steps li {
+  counter-increment: step;
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text2);
+}
+.steps li:last-child { border-bottom: none; }
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--green);
+  min-width: 24px; padding-top: 2px;
+  flex: none;
+}
+
+/* ── Scroll progress ── */
+#progress {
+  position: fixed; top: 0; left: var(--sidebar-w); right: 0;
+  height: 2px; background: var(--border);
+  z-index: 200;
+}
+#progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  width: 0%; transition: width 0.1s;
+}
+
+/* ── Back to top ── */
+#backtop {
+  position: fixed; bottom: 28px; right: 28px;
+  width: 40px; height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--green2); font-size: 16px;
+  text-decoration: none; cursor: pointer;
+  opacity: 0; transition: opacity 0.3s;
+  z-index: 200;
+}
+#backtop.visible { opacity: 1; }
+#backtop:hover { background: var(--surface2); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; }
+  .hero, .chapter { padding: 40px 24px; }
+  .hero-preview { display: none; }
+}
+
+/* Annotation inline */
+.anno {
+  display: inline-block;
+  background: rgba(109,179,63,0.15);
+  border-radius: 3px;
+  padding: 0 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--green2);
+}
+
+/* Table */
+table {
+  width: 100%; border-collapse: collapse;
+  margin: 16px 0; font-size: 12px;
+}
+th {
+  text-align: left; padding: 8px 14px;
+  background: rgba(109,179,63,0.08);
+  color: var(--green2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border2);
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+td:first-child { color: var(--code-fn); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(109,179,63,0.03); }
+
+</style>
+</head>
+<body>
+
+<!-- ── Progress Bar ── -->
+<div id="progress"><div id="progress-bar"></div></div>
+
+<!-- ══════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-zh">人生時鐘</span>
+    <span class="logo-sub">Technical Deep Dive</span>
+  </div>
+
+  <div class="nav-section-label">教學單元</div>
+  <a class="nav-link" href="#ch0"><span class="nav-num">00</span>專案概覽</a>
+  <a class="nav-link" href="#ch1"><span class="nav-num">01</span>網頁布局與 CSS 架構</a>
+  <a class="nav-link" href="#ch2"><span class="nav-num">02</span>背景填充圖案原理</a>
+  <a class="nav-link" href="#ch3"><span class="nav-num">03</span>座標系統與變換</a>
+  <a class="nav-link" href="#ch4"><span class="nav-num">04</span>JS 動畫架構與事件</a>
+  <a class="nav-link" href="#ch5"><span class="nav-num">05</span>物件繪製與移動</a>
+  <a class="nav-link" href="#ch6"><span class="nav-num">06</span>進階技巧精講</a>
+
+  <div class="nav-section-label" style="margin-top:16px;">快速參考</div>
+  <a class="nav-link" href="#ref-ctx">Canvas API 常用方法</a>
+  <a class="nav-link" href="#ref-raf">RAF 動畫模板</a>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════ -->
+<div id="main">
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-tag">技術解析教學 · Canvas 2D · Animation · Design</div>
+  <h1 class="hero-title">人生時鐘<br><span>技術深度解析</span></h1>
+  <p class="hero-subtitle">Life Journey Clock · Technical Deep Dive</p>
+  <p class="hero-desc">
+    本教學以「人生時鐘」專案為主軸，逐層拆解一個真實完整網頁作品的技術骨架。
+    適合已具備 HTML / CSS / JavaScript 基礎、希望進一步掌握 Canvas 繪圖、
+    動畫架構與視覺設計整合的學習者。
+  </p>
+  <div class="hero-chips">
+    <span class="chip">HTML5 Canvas</span>
+    <span class="chip">CSS 分層佈局</span>
+    <span class="chip">requestAnimationFrame</span>
+    <span class="chip">座標變換 Transform</span>
+    <span class="chip">Seeded Random</span>
+    <span class="chip">時間數學</span>
+    <span class="chip">DPR / Retina</span>
+    <span class="chip">走路動畫</span>
+  </div>
+
+  <canvas class="hero-preview" id="heroMiniClock" width="160" height="160"></canvas>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH0 專案概覽
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch0">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 00</div>
+    <h2 class="chapter-title">專案概覽 · <em>Project Overview</em></h2>
+    <p class="chapter-desc">
+      在深入任何技術細節前，先從「鳥瞰視角」理解整個專案是由哪些獨立模塊構成，
+      以及它們之間如何協作。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">0.1</span>整體架構地圖</h3>
+    <p>整個 <strong>lifejourneyclock.html</strong> 是一個單一檔案網頁，所有 HTML、CSS、JavaScript 內嵌於同一個 <span class="anno">.html</span> 檔案中。這種結構稱為「自包含頁面」（Self-contained Page），部署極為簡便，適合展示型作品。</p>
+
+    <div class="layer-stack">
+      <div class="layer l0">
+        <span class="layer-z">z-index: 0</span>
+        <span class="layer-name">#bgCanvas</span>
+        <span class="layer-desc">背景花紋層 — fixed 定位，鋪滿整個視口，靜態圖案</span>
+      </div>
+      <div class="layer l1">
+        <span class="layer-z">z-index: 1</span>
+        <span class="layer-name">.scene</span>
+        <span class="layer-desc">時鐘主體容器 — 標題 + clockCanvas + 數位時間</span>
+      </div>
+      <div class="layer l1">
+        <span class="layer-z">z-index: 1</span>
+        <span class="layer-name">.classical-poem-section</span>
+        <span class="layer-desc">七言律詩區塊 — 純 HTML/CSS 文字排版</span>
+      </div>
+      <div class="layer l2">
+        <span class="layer-z">z-index: 1</span>
+        <span class="layer-name">#clockCanvas</span>
+        <span class="layer-desc">時鐘動畫層 — requestAnimationFrame 每幀重繪</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">🗺️ 設計原則</div>
+      <p>用<strong>兩個不同職責的 Canvas</strong> 分開處理：<em>背景</em>（bgCanvas，只在載入/resize 時繪製一次）和<em>前景動畫</em>（clockCanvas，每 16ms 重繪）。這樣可以避免每幀重複繪製靜態背景，大幅節省 GPU 效能。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">0.2</span>JavaScript 模塊分工</h3>
+    <div class="two-col">
+      <div>
+        <div class="code-block">
+          <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">背景系統</span><span class="code-lang">JS</span></div>
+          <pre><span class="cmt">// ── 背景系統 ──</span>
+<span class="fn">resizeBg</span>()         <span class="cmt">// 設定 canvas 尺寸</span>
+<span class="fn">drawBgPattern</span>()    <span class="cmt">// 繪製整個背景</span>
+  └ <span class="fn">drawLeaf</span>()     <span class="cmt">// 葉子</span>
+  └ <span class="fn">drawButterfly</span>()<span class="cmt">// 蝴蝶</span>
+  └ <span class="fn">drawBird</span>()     <span class="cmt">// 飛鳥...</span>
+<span class="fn">seededRand</span>()       <span class="cmt">// 偽隨機產生器</span></pre>
+        </div>
+      </div>
+      <div>
+        <div class="code-block">
+          <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">時鐘動畫系統</span><span class="code-lang">JS</span></div>
+          <pre><span class="cmt">// ── 時鐘動畫系統 ──</span>
+<span class="fn">drawFrame</span>()         <span class="cmt">// 主迴圈</span>
+  └ <span class="fn">drawFace</span>()      <span class="cmt">// 錶盤</span>
+  └ <span class="fn">drawOrbitRing</span>() <span class="cmt">// 軌道環</span>
+  └ <span class="fn">drawHand</span>()      <span class="cmt">// 指針</span>
+  └ <span class="fn">drawCenter</span>()    <span class="cmt">// 中心帽</span>
+  └ <span class="fn">placeChar</span>()     <span class="cmt">// 放置角色</span>
+    └ <span class="fn">drawMan/Woman/Child</span>()</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH1 網頁布局與 CSS 架構
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch1">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 01</div>
+    <h2 class="chapter-title">網頁布局與 <em>CSS 架構</em></h2>
+    <p class="chapter-desc">
+      了解如何用 CSS 構建一個兼顧視覺質感與響應式能力的頁面骨架，
+      包含固定背景層、彈性主體排版，以及細節字體策略。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">1.1</span>固定背景層技巧</h3>
+    <p>背景 Canvas 使用 <span class="anno">position: fixed</span> + <span class="anno">inset: 0</span>，讓它永遠固定在視口中，不隨頁面滾動而移動，且不佔據文件流空間。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">背景 Canvas 定位</span><span class="code-lang">CSS</span></div>
+      <pre><span class="pr">#bgCanvas</span> {
+  <span class="kw">position</span>: fixed;
+  <span class="kw">inset</span>: 0;              <span class="cmt">/* 等同於 top:0; right:0; bottom:0; left:0 */</span>
+  <span class="kw">width</span>: 100vw;
+  <span class="kw">height</span>: 100vh;
+  <span class="kw">z-index</span>: 0;
+  <span class="kw">pointer-events</span>: none; <span class="cmt">/* ⬅ 關鍵！讓滑鼠事件穿透到下方元素 */</span>
+}</pre>
+    </div>
+
+    <div class="callout amber">
+      <div class="callout-title">⚠️ 常見陷阱</div>
+      <p>忘記加 <em>pointer-events: none</em> 的話，背景 canvas 會攔截所有點擊事件，導致頁面上的按鈕、連結全部失效！</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">1.2</span>Flexbox 垂直居中佈局</h3>
+    <p>主體使用 <strong>body 作為全高 Flex 容器</strong>，搭配 <span class="anno">flex-direction: column</span>，讓所有子元素自動垂直排列於中央。這是最簡潔的垂直居中方案之一。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">body 全頁 Flex 容器</span><span class="code-lang">CSS</span></div>
+      <pre><span class="pr">html, body</span> {
+  <span class="kw">width</span>: 100%;
+  <span class="kw">min-height</span>: 100vh;     <span class="cmt">/* 最少填滿視口，超出可捲動 */</span>
+  <span class="kw">display</span>: flex;
+  <span class="kw">flex-direction</span>: column;
+  <span class="kw">align-items</span>: center;   <span class="cmt">/* 水平居中 */</span>
+  <span class="kw">justify-content</span>: center; <span class="cmt">/* 垂直居中 */</span>
+  <span class="kw">overflow-x</span>: hidden;   <span class="cmt">/* 防止橫向捲軸 */</span>
+}
+
+<span class="pr">.scene</span> {
+  <span class="kw">position</span>: relative;
+  <span class="kw">z-index</span>: 1;           <span class="cmt">/* 確保在 bgCanvas 之上 */</span>
+}</pre>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">💡 min-height vs height</div>
+      <p>用 <em>min-height: 100vh</em> 而非 <em>height: 100vh</em>，是因為如果頁面內容超過視口高度，<em>height: 100vh</em> 會裁切內容；<em>min-height</em> 則允許頁面自然延伸。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">1.3</span>字體配對策略</h3>
+    <p>本專案精心搭配了兩種字體，各司其職，形成強烈的視覺對比：</p>
+
+    <table>
+      <tr><th>字體</th><th>角色</th><th>應用場景</th></tr>
+      <tr><td>Orbitron</td><td>科技感等寬字體</td><td>數位時間顯示、刻度數字、英文標題</td></tr>
+      <tr><td>Noto Sans TC</td><td>清晰中文無襯線</td><td>中文標題、說明文字、詩句</td></tr>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">Google Fonts 引入</span><span class="code-lang">CSS</span></div>
+      <pre><span class="pr">@import</span> <span class="fn">url</span>(<span class="str">'https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;700&family=Noto+Sans+TC:wght@100;300;400&display=swap'</span>);</pre>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">💡 display=swap 的作用</div>
+      <p>在字體下載完成前，瀏覽器會先用系統預設字體顯示文字，下載完成後立即切換（Swap）。避免了頁面空白等待，改善使用者體驗（防止 FOIT — Flash of Invisible Text）。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">1.4</span>響應式尺寸技巧 — clamp() 與 min()</h3>
+    <p>專案使用了兩個現代 CSS 函數來處理不同螢幕寬度的適配：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">流體尺寸</span><span class="code-lang">CSS</span></div>
+      <pre><span class="cmt">/* 詩文區塊：最大 680px，小螢幕縮至 92vw */</span>
+<span class="pr">.poem-section</span> {
+  <span class="kw">width</span>: <span class="fn">min</span>(<span class="num">680px</span>, <span class="num">92vw</span>);
+}
+
+<span class="cmt">/* Canvas 尺寸：最大 640px，小螢幕縮至 94vw（在 JS 中計算）*/</span>
+<span class="kw">const</span> <span class="vr">SIZE</span> = <span class="fn">Math.min</span>(<span class="vr">window.innerWidth</span> * <span class="num">0.94</span>, <span class="num">640</span>);</pre>
+    </div>
+
+    <div class="kv-row">
+      <div class="kv"><span class="kv-key">min(a, b)</span><span class="kv-val">取兩者中較小值，常用於設定上限</span></div>
+      <div class="kv"><span class="kv-key">clamp(min, val, max)</span><span class="kv-val">限定值在 min~max 之間，val 隨視口流動</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">1.5</span>裝飾性線條技巧</h3>
+    <p>標題下方的漸層分隔線，使用單一 <span class="anno">span</span> 元素搭配 <span class="anno">linear-gradient</span> 製作，兩端透明，視覺上優雅淡出：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">漸層分隔線</span><span class="code-lang">CSS</span></div>
+      <pre><span class="pr">.title-line</span> {
+  <span class="kw">display</span>: block;
+  <span class="kw">width</span>: 100%; <span class="kw">height</span>: 1.5px;
+  <span class="kw">background</span>: <span class="fn">linear-gradient</span>(
+    <span class="num">90deg</span>,
+    <span class="str">transparent</span>,
+    <span class="fn">rgba</span>(<span class="num">50,120,10,0.25</span>) <span class="num">15%</span>,
+    <span class="fn">rgba</span>(<span class="num">50,120,10,0.6</span>)  <span class="num">50%</span>,  <span class="cmt">/* 中央最亮 */</span>
+    <span class="fn">rgba</span>(<span class="num">50,120,10,0.25</span>) <span class="num">85%</span>,
+    <span class="str">transparent</span>            <span class="cmt">/* 兩端漸透明 */</span>
+  );
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH2 背景填充圖案
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch2">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 02</div>
+    <h2 class="chapter-title">背景填充圖案 <em>設計原理</em></h2>
+    <p class="chapter-desc">
+      背景並非圖片，而是用程式即時繪製的大量自然主題圖案。
+      學習如何用「網格鋪排 + 隨機偏移」製造既有規律又不失自然感的紋理背景。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">2.1</span>核心策略：網格 + 偏移</h3>
+    <p>直覺上，若要把圖案隨機分佈於整個畫面，可能想到「隨機 x、隨機 y」——但這樣容易產生圖案扎堆或大面積空白。更優雅的方案是<strong>先建立網格，再在每個格子內加入隨機偏移</strong>：</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">互動示範 — 網格 vs 純隨機 vs 網格偏移</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoGrid" width="560" height="200" style="max-width:100%"></canvas>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+          <button onclick="demoGridMode('pure')" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 16px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">純隨機</button>
+          <button onclick="demoGridMode('grid')" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 16px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">完美網格</button>
+          <button onclick="demoGridMode('jitter')" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 16px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">網格 + 偏移 ✓</button>
+        </div>
+        <div class="demo-caption" id="gridCaption">點擊按鈕觀察不同分佈方式的視覺差異</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">網格偏移核心邏輯</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">const</span> <span class="vr">TILE_W</span> = <span class="num">52</span>, <span class="vr">TILE_H</span> = <span class="num">52</span>; <span class="cmt">// 格子大小</span>
+
+<span class="kw">const</span> <span class="vr">cols</span> = <span class="fn">Math.ceil</span>(<span class="vr">W</span> / <span class="vr">TILE_W</span>) + <span class="num">2</span>; <span class="cmt">// 多出 2 列避免邊界空白</span>
+<span class="kw">const</span> <span class="vr">rows</span> = <span class="fn">Math.ceil</span>(<span class="vr">H</span> / <span class="vr">TILE_H</span>) + <span class="num">2</span>;
+
+<span class="kw">for</span> (<span class="kw">let</span> <span class="vr">row</span> = -<span class="num">1</span>; <span class="vr">row</span> < <span class="vr">rows</span>; <span class="vr">row</span>++) {
+  <span class="kw">for</span> (<span class="kw">let</span> <span class="vr">col</span> = -<span class="num">1</span>; <span class="vr">col</span> < <span class="vr">cols</span>; <span class="vr">col</span>++) {
+    <span class="kw">const</span> <span class="vr">rnd</span> = <span class="fn">seededRand</span>(<span class="vr">col</span> * <span class="num">997</span> + <span class="vr">row</span> * <span class="num">4001</span> + <span class="num">7</span>);
+
+    <span class="cmt">// 格子左上角 + 在格子內隨機偏移 (0.55 的格子寬度範圍)</span>
+    <span class="kw">const</span> <span class="vr">tx</span> = <span class="vr">col</span> * <span class="vr">TILE_W</span> + <span class="fn">rnd</span>() * <span class="vr">TILE_W</span> * <span class="num">0.55</span> + <span class="vr">TILE_W</span> * <span class="num">0.2</span>;
+    <span class="kw">const</span> <span class="vr">ty</span> = <span class="vr">row</span> * <span class="vr">TILE_H</span> + <span class="fn">rnd</span>() * <span class="vr">TILE_H</span> * <span class="num">0.55</span> + <span class="vr">TILE_H</span> * <span class="num">0.2</span>;
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">2.2</span>Seeded Random — 可重現的隨機</h3>
+    <p><strong>問題：</strong>如果每次 resize 都用 <span class="anno">Math.random()</span>，視窗大小改變後所有圖案位置都會變化，讓使用者感覺畫面「閃動」。</p>
+    <p><strong>解法：</strong>用「種子偽隨機」（Seeded Pseudo-Random），輸入同樣的種子永遠產生同樣的亂數序列，確保 resize 後圖案位置不變。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">線性同餘產生器（LCG）</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// 頁面載入時隨機一次，刷新後才變化</span>
+<span class="kw">const</span> <span class="vr">PAGE_SEED</span> = <span class="fn">Math.floor</span>(<span class="fn">Math.random</span>() * <span class="num">0xffffff</span>);
+
+<span class="kw">function</span> <span class="fn">seededRand</span>(<span class="vr">seed</span>) {
+  <span class="kw">let</span> <span class="vr">s</span> = (<span class="vr">seed</span> ^ <span class="vr">PAGE_SEED</span>) >>> <span class="num">0</span>; <span class="cmt">// XOR 混入頁面種子</span>
+  <span class="kw">return</span> <span class="kw">function</span>() {
+    <span class="cmt">// 線性同餘演算法 (LCG) — 快速、均勻分佈</span>
+    <span class="vr">s</span> = (<span class="vr">s</span> * <span class="num">1664525</span> + <span class="num">1013904223</span>) & <span class="num">0xffffffff</span>;
+    <span class="kw">return</span> (<span class="vr">s</span> >>> <span class="num">0</span>) / <span class="num">0xffffffff</span>; <span class="cmt">// 回傳 [0, 1) 範圍</span>
+  };
+}
+
+<span class="cmt">// 使用方式：每格有自己獨立的 rnd 函數</span>
+<span class="kw">const</span> <span class="vr">rnd</span> = <span class="fn">seededRand</span>(<span class="vr">col</span> * <span class="num">997</span> + <span class="vr">row</span> * <span class="num">4001</span>);
+<span class="fn">rnd</span>() <span class="cmt">// 第一次呼叫 → 隨機值（決定 x 偏移）</span>
+<span class="fn">rnd</span>() <span class="cmt">// 第二次呼叫 → 不同隨機值（決定 y 偏移）</span>
+<span class="fn">rnd</span>() <span class="cmt">// 第三次呼叫 → 決定圖案類型</span></pre>
+    </div>
+
+    <div class="kv-row">
+      <div class="kv"><span class="kv-key">1664525</span><span class="kv-val">乘法常數（來自 Knuth 的推薦值）</span></div>
+      <div class="kv"><span class="kv-key">1013904223</span><span class="kv-val">加法常數（保證週期性）</span></div>
+      <div class="kv"><span class="kv-key">& 0xffffffff</span><span class="kv-val">限制在 32-bit 整數範圍</span></div>
+      <div class="kv"><span class="kv-key">>>> 0</span><span class="kv-val">轉為無符號整數</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">2.3</span>深度漸層遮罩</h3>
+    <p>背景圖案繪製完後，疊上兩道半透明漸層遮罩，製造出「下方和右側越來越暗」的景深效果，讓主體時鐘更突出：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">雙向遮罩層</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// 垂直遮罩：上亮下暗</span>
+<span class="kw">const</span> <span class="vr">maskV</span> = <span class="vr">bctx</span>.<span class="fn">createLinearGradient</span>(<span class="num">0</span>, <span class="vr">LH</span>*<span class="num">0.35</span>, <span class="num">0</span>, <span class="vr">LH</span>);
+<span class="vr">maskV</span>.<span class="fn">addColorStop</span>(<span class="num">0</span>,   <span class="str">'rgba(80,130,40,0)'</span>);   <span class="cmt">// 從中段開始</span>
+<span class="vr">maskV</span>.<span class="fn">addColorStop</span>(<span class="num">0.5</span>, <span class="str">'rgba(80,120,38,0.45)'</span>);
+<span class="vr">maskV</span>.<span class="fn">addColorStop</span>(<span class="num">1</span>,   <span class="str">'rgba(60,95,30,0.85)'</span>);  <span class="cmt">// 底部 85% 遮蓋力</span>
+<span class="vr">bctx</span>.<span class="pr">fillStyle</span> = <span class="vr">maskV</span>;
+<span class="vr">bctx</span>.<span class="fn">fillRect</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="vr">LW</span>, <span class="vr">LH</span>);
+
+<span class="cmt">// 水平遮罩：右側加深</span>
+<span class="kw">const</span> <span class="vr">maskH</span> = <span class="vr">bctx</span>.<span class="fn">createLinearGradient</span>(<span class="vr">LW</span>*<span class="num">0.45</span>, <span class="num">0</span>, <span class="vr">LW</span>, <span class="num">0</span>);
+<span class="vr">maskH</span>.<span class="fn">addColorStop</span>(<span class="num">0</span>, <span class="str">'rgba(70,110,35,0)'</span>);
+<span class="vr">maskH</span>.<span class="fn">addColorStop</span>(<span class="num">1</span>, <span class="str">'rgba(55,88,28,0.40)'</span>);
+<span class="vr">bctx</span>.<span class="pr">fillStyle</span> = <span class="vr">maskH</span>;
+<span class="vr">bctx</span>.<span class="fn">fillRect</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="vr">LW</span>, <span class="vr">LH</span>);</pre>
+    </div>
+
+    <div class="callout cyan">
+      <div class="callout-title">🎨 設計思維</div>
+      <p>遮罩顏色選用<em>與背景漸層相同色系</em>（深綠調），而非純黑色。這樣遮蓋後圖案「融入」背景，而不是被黑色壓死，視覺上更自然。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">2.4</span>圖案函數設計規範</h3>
+    <p>所有圖案繪製函數遵循統一的<strong>簽名規格</strong>，方便在陣列中統一呼叫：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">統一函數簽名</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// 所有圖案函數都接受相同參數</span>
+<span class="kw">function</span> <span class="fn">drawLeaf</span>(<span class="vr">c</span>, <span class="vr">x</span>, <span class="vr">y</span>, <span class="vr">size</span>, <span class="vr">angle</span>, <span class="vr">col</span>, <span class="vr">veinCol</span>) { ... }
+<span class="kw">function</span> <span class="fn">drawBird</span>(<span class="vr">c</span>, <span class="vr">x</span>, <span class="vr">y</span>, <span class="vr">size</span>, <span class="vr">angle</span>, <span class="vr">col</span>, <span class="vr">veinCol</span>) { ... }
+<span class="kw">function</span> <span class="fn">drawFlower</span>(<span class="vr">c</span>, <span class="vr">x</span>, <span class="vr">y</span>, <span class="vr">size</span>, <span class="vr">angle</span>, <span class="vr">col</span>, <span class="vr">veinCol</span>) { ... }
+
+<span class="cmt">// 圖案配置陣列</span>
+<span class="kw">const</span> <span class="vr">MOTIFS</span> = [
+  { <span class="pr">fn</span>: <span class="fn">drawLeaf</span>,   <span class="pr">sMin</span>: <span class="num">36</span>, <span class="pr">sMax</span>: <span class="num">55</span> },
+  { <span class="pr">fn</span>: <span class="fn">drawBird</span>,   <span class="pr">sMin</span>: <span class="num">26</span>, <span class="pr">sMax</span>: <span class="num">40</span> },
+  ...
+];
+
+<span class="cmt">// 統一呼叫：不需要 if/switch 判斷類型</span>
+<span class="kw">const</span> <span class="vr">m</span> = <span class="vr">MOTIFS</span>[<span class="fn">Math.floor</span>(<span class="fn">rnd</span>() * <span class="vr">MOTIFS.length</span>)];
+<span class="vr">m</span>.<span class="fn">fn</span>(<span class="vr">bctx</span>, <span class="vr">tx</span>, <span class="vr">ty</span>, <span class="vr">size</span>, <span class="vr">angle</span>, <span class="vr">colStr</span>, <span class="vr">veinCol</span>);</pre>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">✨ 設計模式：策略模式（Strategy Pattern）</div>
+      <p>將所有圖案函數放入陣列，透過統一介面呼叫，稱為「策略模式」。新增圖案只需要加入陣列，不需修改主程式邏輯。這是讓程式具備<strong>可擴展性</strong>的關鍵技巧。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH3 座標系統
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch3">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 03</div>
+    <h2 class="chapter-title">座標系統 <em>與變換</em></h2>
+    <p class="chapter-desc">
+      Canvas 2D 的座標系統是所有繪圖操作的基礎。
+      理解原點、軸方向、DPR 縮放、以及 translate/rotate/scale 的組合順序，
+      是繪製精確動畫的前提。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">3.1</span>Canvas 座標系統基礎</h3>
+    <p>Canvas 的座標原點 <strong>(0, 0)</strong> 在<strong>左上角</strong>，X 軸向右為正，Y 軸<em>向下</em>為正（與數學直覺相反）。角度也是順時針為正。</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">Canvas 座標系統示意圖</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoCoord" width="480" height="240" style="max-width:100%"></canvas>
+        <div class="demo-caption">注意：Y 軸向下為正，角度以 12 點鐘方向為 -π/2</div>
+      </div>
+    </div>
+
+    <div class="callout amber">
+      <div class="callout-title">⚠️ 時鐘角度的關鍵換算</div>
+      <p>時鐘 12 點在頂部，但 Canvas 預設 0 弧度指向 <em>右方（3 點）</em>。因此所有時鐘角度都需要減去 <em>π/2</em>：</p>
+      <div class="code-block" style="margin:8px 0">
+        <pre style="padding:12px 16px"><span class="kw">const</span> <span class="vr">hA</span> = <span class="vr">hFrac</span> * <span class="fn">Math.PI</span> * <span class="num">2</span> - <span class="fn">Math.PI</span> / <span class="num">2</span>;
+<span class="cmt">//                                   ↑ 旋轉 -90° 讓 0 對應 12 點方向</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">3.2</span>DPR — Retina 高解析度處理</h3>
+    <p>在 Retina / HiDPI 螢幕上，一個 CSS 像素對應多個物理像素（DPR 通常為 2 或 3）。若不處理，Canvas 圖案會模糊。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">DPR 高清處理公式</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">const</span> <span class="vr">dpr</span>  = <span class="vr">window</span>.<span class="pr">devicePixelRatio</span> || <span class="num">1</span>;
+<span class="kw">const</span> <span class="vr">SIZE</span> = <span class="num">640</span>; <span class="cmt">// 邏輯尺寸（CSS px）</span>
+
+<span class="cmt">// 物理像素：Retina 上為 640 × 2 = 1280</span>
+<span class="vr">canvas</span>.<span class="pr">width</span>  = <span class="vr">SIZE</span> * <span class="vr">dpr</span>;
+<span class="vr">canvas</span>.<span class="pr">height</span> = <span class="vr">SIZE</span> * <span class="vr">dpr</span>;
+
+<span class="cmt">// CSS 尺寸仍維持邏輯大小，版面不跑位</span>
+<span class="vr">canvas</span>.<span class="pr">style.width</span>  = <span class="vr">SIZE</span> + <span class="str">'px'</span>;
+<span class="vr">canvas</span>.<span class="pr">style.height</span> = <span class="vr">SIZE</span> + <span class="str">'px'</span>;
+
+<span class="cmt">// 縮放繪圖上下文，使後續繪圖座標仍以 SIZE 為單位</span>
+<span class="vr">ctx</span>.<span class="fn">setTransform</span>(<span class="vr">dpr</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="vr">dpr</span>, <span class="num">0</span>, <span class="num">0</span>);</pre>
+    </div>
+
+    <div class="kv-row">
+      <div class="kv"><span class="kv-key">canvas.width</span><span class="kv-val">物理像素數量（影響畫質）</span></div>
+      <div class="kv"><span class="kv-key">canvas.style.width</span><span class="kv-val">CSS 顯示尺寸（影響佈局）</span></div>
+      <div class="kv"><span class="kv-key">ctx.setTransform</span><span class="kv-val">縮放繪圖座標對應物理像素</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">3.3</span>save() / restore() — 上下文狀態棧</h3>
+    <p><span class="anno">ctx.save()</span> 和 <span class="anno">ctx.restore()</span> 是 Canvas 繪圖中最重要的一對操作。它們保存和恢復整個繪圖上下文的狀態（包含：當前變換矩陣、strokeStyle、fillStyle、lineWidth 等所有屬性）。</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">互動示範 — save/restore 效果</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoSaveRestore" width="480" height="180" style="max-width:100%"></canvas>
+        <div class="demo-caption">沒有 save/restore：變換會累積影響後續繪圖</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">正確的使用模式</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">function</span> <span class="fn">drawLeaf</span>(<span class="vr">c</span>, <span class="vr">x</span>, <span class="vr">y</span>, <span class="vr">size</span>, <span class="vr">angle</span>, <span class="vr">col</span>) {
+  <span class="vr">c</span>.<span class="fn">save</span>();              <span class="cmt">// 📌 1. 保存當前狀態</span>
+
+  <span class="vr">c</span>.<span class="fn">translate</span>(<span class="vr">x</span>, <span class="vr">y</span>);    <span class="cmt">// 移動原點到繪製位置</span>
+  <span class="vr">c</span>.<span class="fn">rotate</span>(<span class="vr">angle</span>);      <span class="cmt">// 旋轉角度</span>
+  <span class="vr">c</span>.<span class="pr">strokeStyle</span> = <span class="vr">col</span>;  <span class="cmt">// 修改顏色屬性</span>
+
+  <span class="cmt">// ... 繪圖 ...</span>
+
+  <span class="vr">c</span>.<span class="fn">restore</span>();           <span class="cmt">// 📌 2. 恢復到 save() 之前的狀態</span>
+  <span class="cmt">// ↑ 無論在函數內做了什麼，都不會影響外部的繪圖上下文</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">3.4</span>變換順序的重要性</h3>
+    <p>在 Canvas 中，<strong>translate、rotate、scale 的順序非常重要</strong>，順序不同結果完全不同。規則：<em>後寫的變換先執行</em>（因為矩陣乘法的特性）。</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">互動示範 — 變換順序差異</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoTransform" width="480" height="200" style="max-width:100%"></canvas>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+          <button onclick="demoTransformMode('tr')" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">translate → rotate</button>
+          <button onclick="demoTransformMode('rt')" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">rotate → translate</button>
+        </div>
+        <div class="demo-caption" id="transformCaption">選擇順序觀察差異</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">角色放置在軌道上的方法</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">const</span> <span class="fn">placeChar</span> = (<span class="vr">drawFn</span>, <span class="vr">orbitR</span>, <span class="vr">angle</span>, <span class="vr">frame</span>, <span class="vr">scale</span>) => {
+  <span class="cmt">// 計算角色在軌道上的座標</span>
+  <span class="kw">const</span> <span class="vr">x</span> = <span class="vr">CX</span> + <span class="fn">Math.cos</span>(<span class="vr">angle</span>) * <span class="vr">orbitR</span>;
+  <span class="kw">const</span> <span class="vr">y</span> = <span class="vr">CY</span> + <span class="fn">Math.sin</span>(<span class="vr">angle</span>) * <span class="vr">orbitR</span>;
+
+  <span class="vr">ctx</span>.<span class="fn">save</span>();
+  <span class="vr">ctx</span>.<span class="fn">translate</span>(<span class="vr">x</span>, <span class="vr">y</span>);          <span class="cmt">// 1. 移動到軌道位置</span>
+  <span class="vr">ctx</span>.<span class="fn">rotate</span>(<span class="vr">angle</span> + <span class="fn">Math.PI</span>/<span class="num">2</span>);  <span class="cmt">// 2. 旋轉使角色面向行進方向</span>
+  <span class="vr">ctx</span>.<span class="fn">scale</span>(<span class="vr">scale</span>, <span class="vr">scale</span>);       <span class="cmt">// 3. 縮放</span>
+  <span class="fn">drawFn</span>(<span class="vr">frame</span>);                  <span class="cmt">// 角色繪製函數以 (0,0) 為中心</span>
+  <span class="vr">ctx</span>.<span class="fn">restore</span>();
+};</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH4 JS 動畫架構與事件
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch4">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 04</div>
+    <h2 class="chapter-title">JS 動畫架構 <em>與事件</em></h2>
+    <p class="chapter-desc">
+      掌握 requestAnimationFrame 驅動的主迴圈架構、
+      時間差計算、以及讓動畫在不同裝置上保持一致速度的技巧。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">4.1</span>requestAnimationFrame 主迴圈</h3>
+    <p><span class="anno">requestAnimationFrame</span>（簡稱 RAF）告訴瀏覽器：「下次螢幕刷新前，請呼叫這個函數」。瀏覽器會自動配合螢幕更新頻率（60Hz → 每 16.67ms 一次），比 <span class="anno">setInterval</span> 更省電、更流暢。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">RAF 動畫迴圈架構</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">let</span> <span class="vr">lastTs</span> = <span class="kw">null</span>;
+
+<span class="kw">function</span> <span class="fn">drawFrame</span>(<span class="vr">ts</span>) {  <span class="cmt">// ts = 時間戳記（毫秒）</span>
+  <span class="cmt">// ── 計算時間差 ──</span>
+  <span class="kw">if</span> (!<span class="vr">lastTs</span>) <span class="vr">lastTs</span> = <span class="vr">ts</span>;
+  <span class="kw">const</span> <span class="vr">dt</span> = <span class="fn">Math.min</span>((<span class="vr">ts</span> - <span class="vr">lastTs</span>) / <span class="num">1000</span>, <span class="num">0.05</span>);
+  <span class="cmt">//                                          ↑ 上限 50ms：切換分頁回來不會暴衝</span>
+  <span class="vr">lastTs</span> = <span class="vr">ts</span>;
+
+  <span class="cmt">// ── 清除上一幀 ──</span>
+  <span class="vr">ctx</span>.<span class="fn">clearRect</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="vr">SIZE</span>, <span class="vr">SIZE</span>);
+
+  <span class="cmt">// ── 繪圖（順序很重要，後繪的在上層）──</span>
+  <span class="fn">drawFace</span>();
+  <span class="fn">drawOrbitRing</span>(...);
+  <span class="fn">drawHand</span>(...);
+  <span class="fn">drawCenter</span>();
+  <span class="fn">placeChar</span>(...);
+
+  <span class="cmt">// ── 驅動下一幀 ──</span>
+  <span class="fn">requestAnimationFrame</span>(<span class="fn">drawFrame</span>);
+}
+
+<span class="fn">requestAnimationFrame</span>(<span class="fn">drawFrame</span>); <span class="cmt">// 啟動迴圈</span></pre>
+    </div>
+
+    <div class="callout amber">
+      <div class="callout-title">⚠️ Math.min(dt, 0.05) 的必要性</div>
+      <p>當使用者切換分頁後回來，瀏覽器暫停了 RAF，此時 ts 差值可能超過 1 秒。若不限制，dt 很大，走路動畫會瞬間跳幾十幀。<em>Math.min(..., 0.05)</em> 確保每幀最多前進 50ms，動畫不會「暴衝」。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">4.2</span>時間驅動的走路動畫</h3>
+    <p>角色走路速度以「每秒換幾幀」為單位，乘以時間差 dt 累積，突破整數時換幀：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">時間差驅動幀動畫</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">let</span> <span class="vr">walkTimers</span> = { <span class="pr">man</span>: <span class="num">0</span>, <span class="pr">woman</span>: <span class="num">0</span>, <span class="pr">child</span>: <span class="num">0</span> };
+<span class="kw">let</span> <span class="vr">walkFrames</span> = { <span class="pr">man</span>: <span class="num">0</span>, <span class="pr">woman</span>: <span class="num">0</span>, <span class="pr">child</span>: <span class="num">0</span> };
+
+<span class="cmt">// 走路速度（每秒換幾幀）</span>
+<span class="kw">const</span> <span class="vr">WALK_SPD</span> = { <span class="pr">man</span>: <span class="num">0.6</span>, <span class="pr">woman</span>: <span class="num">2.6</span>, <span class="pr">child</span>: <span class="num">8.0</span> };
+<span class="cmt">//                 ↑ 男士慢  ↑ 女士中速    ↑ 小孩跑最快（秒針）</span>
+
+<span class="cmt">// 在每一幀 drawFrame 內執行：</span>
+<span class="vr">walkTimers</span>.<span class="pr">man</span> += <span class="vr">dt</span> * <span class="vr">WALK_SPD</span>.<span class="pr">man</span>;
+<span class="kw">if</span> (<span class="vr">walkTimers</span>.<span class="pr">man</span> >= <span class="num">1</span>) {
+  <span class="vr">walkFrames</span>.<span class="pr">man</span> = (<span class="vr">walkFrames</span>.<span class="pr">man</span> + <span class="num">1</span>) % <span class="num">4</span>; <span class="cmt">// 4 幀循環</span>
+  <span class="vr">walkTimers</span>.<span class="pr">man</span> -= <span class="num">1</span>;                         <span class="cmt">// 保留小數（不丟失精度）</span>
+}</pre>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">💡 為何三個角色速度不同？</div>
+      <p>秒針每 60 秒繞一圈，分針每 60 分鐘，時針每 12 小時。<em>小孩（秒針）</em>轉最快，走路頻率設最高；<em>男士（時針）</em>轉最慢，走路緩慢沉穩，呼應「人生不同階段」的隱喻。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">4.3</span>Resize 事件與 Debounce</h3>
+    <p>視窗大小改變時需要重新繪製背景，但 resize 事件在拖曳視窗時每秒觸發數百次。<strong>Debounce</strong> 技巧確保停止改變後才執行，避免效能浪費：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">Debounce 防抖</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">let</span> <span class="vr">resizeBgTimer</span> = <span class="kw">null</span>;
+
+<span class="kw">function</span> <span class="fn">resizeBgDebounced</span>() {
+  <span class="kw">if</span> (<span class="vr">resizeBgTimer</span>) <span class="fn">clearTimeout</span>(<span class="vr">resizeBgTimer</span>); <span class="cmt">// 取消上次的計時</span>
+  <span class="vr">resizeBgTimer</span> = <span class="fn">setTimeout</span>(<span class="vr">resizeBg</span>, <span class="num">80</span>);         <span class="cmt">// 80ms 後才執行</span>
+}
+
+<span class="vr">window</span>.<span class="fn">addEventListener</span>(<span class="str">'resize'</span>, <span class="fn">resizeBgDebounced</span>);
+<span class="vr">window</span>.<span class="fn">addEventListener</span>(<span class="str">'orientationchange'</span>, <span class="fn">resizeBg</span>);
+
+<span class="cmt">// 手機 pinch zoom / 軟鍵盤彈出也會改變視口大小</span>
+<span class="kw">if</span> (<span class="vr">window</span>.<span class="pr">visualViewport</span>) {
+  <span class="vr">window</span>.<span class="pr">visualViewport</span>.<span class="fn">addEventListener</span>(<span class="str">'resize'</span>, <span class="fn">resizeBgDebounced</span>);
+  <span class="vr">window</span>.<span class="pr">visualViewport</span>.<span class="fn">addEventListener</span>(<span class="str">'scroll'</span>, <span class="fn">resizeBgDebounced</span>);
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">4.4</span>時間數學 — 從時間到角度</h3>
+    <p>將當前時間轉換成 <span class="anno">[0, 1]</span> 的比例值，再換算成弧度，是時鐘動畫的核心數學：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">時間 → 分數 → 角度</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">const</span> <span class="vr">now</span> = <span class="kw">new</span> <span class="fn">Date</span>();
+<span class="kw">const</span> <span class="vr">h</span>  = <span class="vr">now</span>.<span class="fn">getHours</span>() % <span class="num">12</span>;  <span class="cmt">// 0–11</span>
+<span class="kw">const</span> <span class="vr">m</span>  = <span class="vr">now</span>.<span class="fn">getMinutes</span>();       <span class="cmt">// 0–59</span>
+<span class="kw">const</span> <span class="vr">s</span>  = <span class="vr">now</span>.<span class="fn">getSeconds</span>();       <span class="cmt">// 0–59</span>
+<span class="kw">const</span> <span class="vr">ms</span> = <span class="vr">now</span>.<span class="fn">getMilliseconds</span>(); <span class="cmt">// 0–999</span>
+
+<span class="cmt">// 時針：加入分、秒的微量，讓指針平滑移動</span>
+<span class="kw">const</span> <span class="vr">hFrac</span> = (<span class="vr">h</span> + <span class="vr">m</span>/<span class="num">60</span> + <span class="vr">s</span>/<span class="num">3600</span>) / <span class="num">12</span>;  <span class="cmt">// [0, 1)</span>
+
+<span class="cmt">// 分針：加入秒的微量</span>
+<span class="kw">const</span> <span class="vr">mFrac</span> = (<span class="vr">m</span> + <span class="vr">s</span>/<span class="num">60</span> + <span class="vr">ms</span>/<span class="num">60000</span>) / <span class="num">60</span>; <span class="cmt">// [0, 1)</span>
+
+<span class="cmt">// 秒針：包含毫秒，實現流暢的連續掃秒</span>
+<span class="kw">const</span> <span class="vr">sFrac</span> = (<span class="vr">s</span> + <span class="vr">ms</span>/<span class="num">1000</span>) / <span class="num">60</span>;         <span class="cmt">// [0, 1)</span>
+
+<span class="cmt">// 換算成弧度（-π/2 使 0 對應 12 點方向）</span>
+<span class="kw">const</span> <span class="vr">hA</span> = <span class="vr">hFrac</span> * <span class="fn">Math.PI</span> * <span class="num">2</span> - <span class="fn">Math.PI</span>/<span class="num">2</span>;
+<span class="kw">const</span> <span class="vr">mA</span> = <span class="vr">mFrac</span> * <span class="fn">Math.PI</span> * <span class="num">2</span> - <span class="fn">Math.PI</span>/<span class="num">2</span>;
+<span class="kw">const</span> <span class="vr">sA</span> = <span class="vr">sFrac</span> * <span class="fn">Math.PI</span> * <span class="num">2</span> - <span class="fn">Math.PI</span>/<span class="num">2</span>;</pre>
+    </div>
+
+    <div class="callout cyan">
+      <div class="callout-title">🔢 為什麼要加次級單位？</div>
+      <p>如果時針只用小時數，每小時才跳動一次——不真實。加入 <em>m/60</em>（分鐘佔一小時的比例）後，時針會在一小時內平滑移動 1/12 圈，符合真實時鐘行為。秒針加 <em>ms/1000</em> 同理。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH5 物件繪製與移動
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch5">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 05</div>
+    <h2 class="chapter-title">物件繪製 <em>與移動</em></h2>
+    <p class="chapter-desc">
+      深入角色繪製系統：如何用 Canvas 基本圖形拼出有個性的角色，
+      以及如何用貝塞爾曲線繪製有機形狀，並讓角色「在軌道上走路」。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">5.1</span>角色結構：由內到外分層繪製</h3>
+    <p>角色是由多個基本圖形（圓形、橢圓、線段、貝塞爾曲線）組合而成。繪製順序至關重要：<strong>先畫底層（四肢），後畫上層（身體、頭部）</strong>，利用自然遮蔽創造立體感。</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">互動示範 — 角色分層繪製過程</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoCharBuild" width="400" height="220" style="max-width:100%"></canvas>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+          <button onclick="charBuildStep(1)" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">① 四肢</button>
+          <button onclick="charBuildStep(2)" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">② 身體</button>
+          <button onclick="charBuildStep(3)" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">③ 頭部</button>
+          <button onclick="charBuildStep(4)" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid #6db33f44;color:#8ed450;border-radius:6px;cursor:pointer">④ 細節</button>
+          <button onclick="charBuildStep(5)" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 14px;background:#1a2d10;border:1px solid var(--amber);color:var(--amber);border-radius:6px;cursor:pointer">完整角色</button>
+        </div>
+        <div class="demo-caption" id="charBuildCaption">點擊步驟按鈕觀察繪製過程</div>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li><strong>四肢（腿 + 腳 + 手臂）</strong> — 最底層，會被身體遮住一部分，製造「腿從身體下方伸出」的視覺效果</li>
+      <li><strong>身體（radialGradient 橢圓）</strong> — 用徑向漸層製造立體感，高光在左上角</li>
+      <li><strong>衣物細節（領帶、蝴蝶結）</strong> — 身體之上</li>
+      <li><strong>頭部（漸層圓形）</strong> — 頭部置於身體右上方，製造側臉行走的感覺</li>
+      <li><strong>五官細節（眼睛、嘴巴、臉頰紅暈）</strong> — 最頂層</li>
+    </ol>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">5.2</span>走路動畫：4 幀循環</h3>
+    <p>走路動畫使用<strong>4 幀循環</strong>：每幀定義不同的腿部角度和身體 bob（上下晃動量），形成自然的步伐節奏。</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">4 幀走路資料</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">function</span> <span class="fn">drawMan</span>(<span class="vr">frame</span>) {
+  <span class="cmt">// frame = 0, 1, 2, 3（循環）</span>
+  <span class="kw">const</span> <span class="vr">bob</span>  = [<span class="num">0</span>,   <span class="num">1.5</span>, <span class="num">0</span>,   <span class="num">1.5</span>][<span class="vr">frame</span>%<span class="num">4</span>]; <span class="cmt">// 身體上下晃動</span>
+  <span class="kw">const</span> <span class="vr">legL</span> = [<span class="num">0.45</span>,<span class="num">0.15</span>,<span class="num">0.45</span>,<span class="num">0.75</span>][<span class="vr">frame</span>%<span class="num">4</span>]; <span class="cmt">// 左腿角度（弧度）</span>
+  <span class="kw">const</span> <span class="vr">legR</span> = [<span class="num">0.75</span>,<span class="num">0.45</span>,<span class="num">0.75</span>,<span class="num">0.15</span>][<span class="vr">frame</span>%<span class="num">4</span>]; <span class="cmt">// 右腿角度（與左腿互相）</span>
+  <span class="kw">const</span> <span class="vr">armL</span> = [-<span class="num">0.6</span>,-<span class="num">0.2</span>,-<span class="num">0.6</span>,-<span class="num">1.0</span>][<span class="vr">frame</span>%<span class="num">4</span>]; <span class="cmt">// 手臂（與腿反向擺動）</span>
+  <span class="kw">const</span> <span class="vr">armR</span> = [-<span class="num">1.0</span>,-<span class="num">0.6</span>,-<span class="num">1.0</span>,-<span class="num">0.2</span>][<span class="vr">frame</span>%<span class="num">4</span>];
+
+  <span class="cmt">// 腿部座標計算：從身體底部 (0, R+bob) 向角度方向延伸 14px</span>
+  <span class="fn">limb</span>(<span class="num">0</span>, <span class="vr">R</span>+<span class="vr">bob</span>,
+       <span class="fn">Math.sin</span>(<span class="vr">legL</span>)*<span class="num">14</span>,
+       <span class="vr">R</span>+<span class="vr">bob</span>+<span class="fn">Math.cos</span>(<span class="vr">legL</span>)*<span class="num">14</span>);
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">5.3</span>徑向漸層製造立體感</h3>
+    <p><span class="anno">createRadialGradient</span> 是製造球體/立體感的關鍵工具。秘訣是<strong>將漸層起始點偏移到左上角</strong>，模擬左上方光源：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">立體感徑向漸層</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// createRadialGradient(x0, y0, r0, x1, y1, r1)</span>
+<span class="cmt">//   (x0,y0,r0) = 內圓（高光點）  (x1,y1,r1) = 外圓（陰影）</span>
+<span class="kw">const</span> <span class="vr">bodyGrad</span> = <span class="vr">ctx</span>.<span class="fn">createRadialGradient</span>(
+  -<span class="num">4</span>, -<span class="num">8</span>+<span class="vr">bob</span>, <span class="num">1</span>,   <span class="cmt">// 高光：偏左上 (-4, -8)，半徑 1 → 小亮點</span>
+   <span class="num">0</span>,  <span class="num">0</span>+<span class="vr">bob</span>, <span class="vr">R</span>*<span class="num">1.4</span> <span class="cmt">// 中心，範圍覆蓋整個身體</span>
+);
+<span class="vr">bodyGrad</span>.<span class="fn">addColorStop</span>(<span class="num">0</span>, <span class="str">'#5888cc'</span>); <span class="cmt">// 高光：淺藍</span>
+<span class="vr">bodyGrad</span>.<span class="fn">addColorStop</span>(<span class="num">1</span>, <span class="str">'#1a3a7a'</span>); <span class="cmt">// 陰影：深藍</span>
+
+<span class="vr">ctx</span>.<span class="pr">fillStyle</span> = <span class="vr">bodyGrad</span>;
+<span class="vr">ctx</span>.<span class="fn">fill</span>();</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">5.4</span>貝塞爾曲線繪製有機形狀</h3>
+    <p>葉子、翅膀、蝴蝶的有機曲線都使用 <span class="anno">bezierCurveTo</span>（三次貝塞爾）實現。理解控制點的作用是掌握它的關鍵：</p>
+
+    <div class="demo-wrap">
+      <div class="demo-header">互動示範 — 貝塞爾曲線控制點</div>
+      <div class="demo-body">
+        <canvas class="demo" id="demoBezier" width="480" height="220" style="max-width:100%;cursor:crosshair"></canvas>
+        <div class="demo-caption">拖動紅色控制點，觀察曲線如何變化</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">葉子輪廓</span><span class="code-lang">JS</span></div>
+      <pre><span class="vr">c</span>.<span class="fn">beginPath</span>();
+<span class="vr">c</span>.<span class="fn">moveTo</span>(<span class="num">0</span>, -<span class="vr">size</span>);          <span class="cmt">// 葉尖（頂部）</span>
+<span class="vr">c</span>.<span class="fn">bezierCurveTo</span>(
+   <span class="vr">size</span>*<span class="num">0.7</span>, -<span class="vr">size</span>*<span class="num">0.6</span>,   <span class="cmt">// 控制點 1（右上）</span>
+   <span class="vr">size</span>*<span class="num">0.7</span>,  <span class="vr">size</span>*<span class="num">0.2</span>,   <span class="cmt">// 控制點 2（右下）</span>
+   <span class="num">0</span>,         <span class="vr">size</span>*<span class="num">0.35</span>   <span class="cmt">// 終點（葉尾）</span>
+);
+<span class="vr">c</span>.<span class="fn">bezierCurveTo</span>(
+  -<span class="vr">size</span>*<span class="num">0.7</span>,  <span class="vr">size</span>*<span class="num">0.2</span>,   <span class="cmt">// 控制點 1（左下）</span>
+  -<span class="vr">size</span>*<span class="num">0.7</span>, -<span class="vr">size</span>*<span class="num">0.6</span>,   <span class="cmt">// 控制點 2（左上）</span>
+   <span class="num">0</span>,         -<span class="vr">size</span>        <span class="cmt">// 回到葉尖（閉合）</span>
+);</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">5.5</span>指針繪製：手繪感的秘訣</h3>
+    <p>時鐘指針不只是一條線，還有<strong>發光效果（Shadow Blur）</strong>、<strong>陰影偏移</strong>和<strong>反向短尾</strong>，這些細節讓指針有質感和重量感：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">帶光暈效果的指針</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">function</span> <span class="fn">drawHand</span>(<span class="vr">angle</span>, <span class="vr">length</span>, <span class="vr">width</span>, <span class="vr">color</span>) {
+  <span class="kw">const</span> <span class="vr">ex</span> = <span class="vr">CX</span> + <span class="fn">Math.cos</span>(<span class="vr">angle</span>) * <span class="vr">length</span>; <span class="cmt">// 指針尖端</span>
+  <span class="kw">const</span> <span class="vr">ey</span> = <span class="vr">CY</span> + <span class="fn">Math.sin</span>(<span class="vr">angle</span>) * <span class="vr">length</span>;
+  <span class="kw">const</span> <span class="vr">tx</span> = <span class="vr">CX</span> - <span class="fn">Math.cos</span>(<span class="vr">angle</span>) * <span class="vr">length</span> * <span class="num">0.15</span>; <span class="cmt">// 反向短尾</span>
+  <span class="kw">const</span> <span class="vr">ty</span> = <span class="vr">CY</span> - <span class="fn">Math.sin</span>(<span class="vr">angle</span>) * <span class="vr">length</span> * <span class="num">0.15</span>;
+
+  <span class="vr">ctx</span>.<span class="fn">save</span>();
+  <span class="cmt">// 1. 偏移陰影（製造懸浮感）</span>
+  <span class="vr">ctx</span>.<span class="fn">beginPath</span>(); <span class="vr">ctx</span>.<span class="fn">moveTo</span>(<span class="vr">tx</span>+<span class="num">2</span>,<span class="vr">ty</span>+<span class="num">2</span>); <span class="vr">ctx</span>.<span class="fn">lineTo</span>(<span class="vr">ex</span>+<span class="num">2</span>,<span class="vr">ey</span>+<span class="num">2</span>);
+  <span class="vr">ctx</span>.<span class="pr">strokeStyle</span> = <span class="str">'rgba(0,0,0,0.12)'</span>; <span class="vr">ctx</span>.<span class="pr">lineWidth</span> = <span class="vr">width</span>+<span class="num">1</span>; <span class="vr">ctx</span>.<span class="fn">stroke</span>();
+
+  <span class="cmt">// 2. 主指針 + 發光效果</span>
+  <span class="vr">ctx</span>.<span class="fn">beginPath</span>(); <span class="vr">ctx</span>.<span class="fn">moveTo</span>(<span class="vr">tx</span>,<span class="vr">ty</span>); <span class="vr">ctx</span>.<span class="fn">lineTo</span>(<span class="vr">ex</span>,<span class="vr">ey</span>);
+  <span class="vr">ctx</span>.<span class="pr">strokeStyle</span> = <span class="vr">color</span>;
+  <span class="vr">ctx</span>.<span class="pr">shadowBlur</span> = <span class="num">8</span>;               <span class="cmt">// 發光模糊半徑</span>
+  <span class="vr">ctx</span>.<span class="pr">shadowColor</span> = <span class="vr">color</span> + <span class="str">'88'</span>;  <span class="cmt">// 半透明光暈</span>
+  <span class="vr">ctx</span>.<span class="fn">stroke</span>();
+  <span class="vr">ctx</span>.<span class="pr">shadowBlur</span> = <span class="num">0</span>;               <span class="cmt">// ⚠️ 畫完後重置，否則影響後續繪圖</span>
+  <span class="vr">ctx</span>.<span class="fn">restore</span>();
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     CH6 進階技巧
+══════════════════════════════════════════ -->
+<section class="chapter" id="ch6">
+  <div class="chapter-header">
+    <div class="chapter-num">Chapter 06</div>
+    <h2 class="chapter-title">進階技巧 <em>精講</em></h2>
+    <p class="chapter-desc">
+      幾個在本專案中使用、但教科書不常提到的實戰技巧：
+      Alpha 分層控制、visualViewport API、軌道進度弧線，以及顏色管理系統。
+    </p>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">6.1</span>顏色管理系統</h3>
+    <p>不直接在繪圖程式碼中寫死顏色字串，而是建立<strong>語義化顏色物件</strong>，讓整個配色方案一目了然、易於修改：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">語義化顏色系統</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// 每個角色一套配色，分別對應：</span>
+<span class="cmt">// stroke（邊框）, fill（填充）, light（進度弧光色）, text（文字）</span>
+
+<span class="kw">const</span> <span class="vr">COL_H</span> = { <span class="pr">stroke</span>:<span class="str">'#1a3a6a'</span>, <span class="pr">fill</span>:<span class="str">'#1e4a88'</span>, <span class="pr">light</span>:<span class="str">'#3a6aaa'</span>, <span class="pr">text</span>:<span class="str">'#0a2040'</span> };
+<span class="cmt">// 男士（時針）→ 海軍藍，穩重沉著</span>
+
+<span class="kw">const</span> <span class="vr">COL_M</span> = { <span class="pr">stroke</span>:<span class="str">'#c04010'</span>, <span class="pr">fill</span>:<span class="str">'#d85020'</span>, <span class="pr">light</span>:<span class="str">'#f07040'</span>, <span class="pr">text</span>:<span class="str">'#6a2000'</span> };
+<span class="cmt">// 女士（分針）→ 橙紅，活力熱情</span>
+
+<span class="kw">const</span> <span class="vr">COL_S</span> = { <span class="pr">stroke</span>:<span class="str">'#20c030'</span>, <span class="pr">fill</span>:<span class="str">'#28d838'</span>, <span class="pr">light</span>:<span class="str">'#60f060'</span>, <span class="pr">text</span>:<span class="str">'#0a5a10'</span> };
+<span class="cmt">// 小孩（秒針）→ 亮綠，生命力旺盛</span>
+
+<span class="cmt">// 使用：解構取用，語義清晰</span>
+<span class="fn">drawOrbitRing</span>(<span class="vr">R_H</span>, <span class="vr">COL_H</span>, <span class="num">12</span>, ...);
+<span class="fn">drawHand</span>(<span class="vr">hA</span>, <span class="vr">R_H</span>, <span class="num">5.5</span>, <span class="vr">COL_H</span>.<span class="pr">fill</span>);</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">6.2</span>進度弧線</h3>
+    <p>時鐘內圈有三道弧線，隨時間比例增長，直覺展示「已走過多少」。繪製方式是 <span class="anno">arc()</span> 只畫一段而非整圓：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">進度弧線繪製</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// 三個軌道同時繪製進度弧</span>
+[[<span class="vr">R_H</span>, <span class="vr">hFrac</span>, <span class="vr">COL_H</span>.<span class="pr">light</span>],
+ [<span class="vr">R_M</span>, <span class="vr">mFrac</span>, <span class="vr">COL_M</span>.<span class="pr">light</span>],
+ [<span class="vr">R_S</span>, <span class="vr">sFrac</span>, <span class="vr">COL_S</span>.<span class="pr">light</span>]].<span class="fn">forEach</span>(([<span class="vr">r</span>, <span class="vr">f</span>, <span class="vr">c</span>]) => {
+  <span class="vr">ctx</span>.<span class="fn">save</span>();
+  <span class="vr">ctx</span>.<span class="fn">beginPath</span>();
+  <span class="vr">ctx</span>.<span class="fn">arc</span>(
+    <span class="vr">CX</span>, <span class="vr">CY</span>, <span class="vr">r</span>,
+    -<span class="fn">Math.PI</span>/<span class="num">2</span>,              <span class="cmt">// 起始角：12 點方向</span>
+    -<span class="fn">Math.PI</span>/<span class="num">2</span> + <span class="vr">f</span>*<span class="fn">Math.PI</span>*<span class="num">2</span> <span class="cmt">// 結束角：比例換算</span>
+  );
+  <span class="vr">ctx</span>.<span class="pr">strokeStyle</span> = <span class="vr">c</span>;
+  <span class="vr">ctx</span>.<span class="pr">lineWidth</span> = <span class="num">3</span>;
+  <span class="vr">ctx</span>.<span class="pr">globalAlpha</span> = <span class="num">0.22</span>; <span class="cmt">// 半透明，低調輔助</span>
+  <span class="vr">ctx</span>.<span class="fn">stroke</span>();
+  <span class="vr">ctx</span>.<span class="fn">restore</span>();
+});</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">6.3</span>visualViewport API — 手機友善的視口</h3>
+    <p>手機上有兩種不同的「視口」概念，普通 resize 事件有時無法捕獲所有變化：</p>
+
+    <table>
+      <tr><th>API</th><th>觸發時機</th><th>適用場景</th></tr>
+      <tr><td>window.innerWidth</td><td>瀏覽器視窗縮放</td><td>桌面瀏覽器</td></tr>
+      <tr><td>window.visualViewport</td><td>pinch-zoom、軟鍵盤彈出</td><td>手機必備</td></tr>
+      <tr><td>screen.width</td><td>不變（螢幕物理尺寸）</td><td>計算最小安全尺寸</td></tr>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">安全的視口尺寸計算</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">function</span> <span class="fn">resizeBg</span>() {
+  <span class="kw">const</span> <span class="vr">vp</span>  = <span class="vr">window</span>.<span class="pr">visualViewport</span>;
+  <span class="kw">const</span> <span class="vr">dpr</span> = <span class="vr">window</span>.<span class="pr">devicePixelRatio</span> || <span class="num">1</span>;
+
+  <span class="cmt">// visualViewport 已考慮 offset（pinch zoom 後的捲動偏移）</span>
+  <span class="kw">const</span> <span class="vr">vw</span> = <span class="vr">vp</span> ? <span class="fn">Math.ceil</span>(<span class="vr">vp</span>.<span class="pr">width</span>  + <span class="vr">vp</span>.<span class="pr">offsetLeft</span>) : <span class="vr">window</span>.<span class="pr">innerWidth</span>;
+  <span class="kw">const</span> <span class="vr">vh</span> = <span class="vr">vp</span> ? <span class="fn">Math.ceil</span>(<span class="vr">vp</span>.<span class="pr">height</span> + <span class="vr">vp</span>.<span class="pr">offsetTop</span>)  : <span class="vr">window</span>.<span class="pr">innerHeight</span>;
+
+  <span class="cmt">// 以螢幕尺寸為下限，避免縮小後背景出現空白</span>
+  <span class="kw">const</span> <span class="vr">fw</span> = <span class="fn">Math.max</span>(<span class="vr">vw</span>, <span class="vr">screen</span>.<span class="pr">width</span>  / <span class="vr">dpr</span>);
+  <span class="kw">const</span> <span class="vr">fh</span> = <span class="fn">Math.max</span>(<span class="vr">vh</span>, <span class="vr">screen</span>.<span class="pr">height</span> / <span class="vr">dpr</span>);
+
+  <span class="vr">bgCanvas</span>.<span class="pr">width</span>  = <span class="vr">fw</span> * <span class="vr">dpr</span>;
+  <span class="vr">bgCanvas</span>.<span class="pr">height</span> = <span class="vr">fh</span> * <span class="vr">dpr</span>;
+  <span class="vr">bgCanvas</span>.<span class="pr">style.width</span>  = <span class="vr">fw</span> + <span class="str">'px'</span>;
+  <span class="vr">bgCanvas</span>.<span class="pr">style.height</span> = <span class="vr">fh</span> + <span class="str">'px'</span>;
+  <span class="vr">bctx</span>.<span class="fn">setTransform</span>(<span class="vr">dpr</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="vr">dpr</span>, <span class="num">0</span>, <span class="num">0</span>);
+
+  <span class="fn">drawBgPattern</span>(); <span class="cmt">// 重新繪製</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title"><span class="s-num">6.4</span>globalAlpha 分層控制透明度</h3>
+    <p>背景圖案根據 Y 座標位置調整透明度，製造<strong>上亮下暗的景深漸變</strong>，讓圖案自然融入背景漸層：</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">依位置動態計算透明度</span><span class="code-lang">JS</span></div>
+      <pre><span class="cmt">// yRatio：當前物件在畫面中的垂直位置（0=頂部，1=底部）</span>
+<span class="kw">const</span> <span class="vr">yRatio</span>   = <span class="fn">Math.max</span>(<span class="num">0</span>, <span class="fn">Math.min</span>(<span class="num">1</span>, <span class="vr">ty</span> / <span class="vr">LH</span>));
+
+<span class="cmt">// darkFade：頂部接近 1.0，底部降至 0.18（82% 衰減）</span>
+<span class="kw">const</span> <span class="vr">darkFade</span> = <span class="num">1</span> - <span class="vr">yRatio</span> * <span class="num">0.82</span>;
+
+<span class="cmt">// 最終 alpha：基礎值 0.18–0.36，再乘以位置衰減</span>
+<span class="kw">const</span> <span class="vr">alpha</span> = (<span class="num">0.18</span> + <span class="fn">rnd</span>() * <span class="num">0.18</span>) * <span class="vr">darkFade</span>;
+
+<span class="cmt">// 葉脈顏色也根據位置調整（深色區葉脈更深才看得清）</span>
+<span class="kw">const</span> <span class="vr">veinAlpha</span> = (<span class="num">0.30</span> + <span class="vr">yRatio</span> * <span class="num">0.55</span>).<span class="fn">toFixed</span>(<span class="num">2</span>); <span class="cmt">// 0.30 → 0.85</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     QUICK REF
+══════════════════════════════════════════ -->
+<section class="chapter" id="ref-ctx">
+  <div class="chapter-header">
+    <div class="chapter-num">Quick Reference</div>
+    <h2 class="chapter-title">Canvas 2D API <em>常用方法</em></h2>
+  </div>
+
+  <div class="section">
+    <table>
+      <tr><th>方法</th><th>說明</th></tr>
+      <tr><td>ctx.save()</td><td>將當前所有狀態推入棧</td></tr>
+      <tr><td>ctx.restore()</td><td>從棧恢復上次 save() 的狀態</td></tr>
+      <tr><td>ctx.translate(x, y)</td><td>移動座標原點</td></tr>
+      <tr><td>ctx.rotate(angle)</td><td>旋轉（弧度，順時針）</td></tr>
+      <tr><td>ctx.scale(sx, sy)</td><td>縮放</td></tr>
+      <tr><td>ctx.setTransform(a,b,c,d,e,f)</td><td>直接設定變換矩陣</td></tr>
+      <tr><td>ctx.clearRect(x,y,w,h)</td><td>清除矩形區域</td></tr>
+      <tr><td>ctx.beginPath()</td><td>開始新路徑</td></tr>
+      <tr><td>ctx.moveTo(x, y)</td><td>移動到點（不畫線）</td></tr>
+      <tr><td>ctx.lineTo(x, y)</td><td>連線到點</td></tr>
+      <tr><td>ctx.arc(cx,cy,r,s,e)</td><td>畫圓弧</td></tr>
+      <tr><td>ctx.ellipse(cx,cy,rx,ry,rot,s,e)</td><td>畫橢圓弧</td></tr>
+      <tr><td>ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,x,y)</td><td>三次貝塞爾曲線</td></tr>
+      <tr><td>ctx.quadraticCurveTo(cpx,cpy,x,y)</td><td>二次貝塞爾曲線</td></tr>
+      <tr><td>ctx.fill()</td><td>填充當前路徑</td></tr>
+      <tr><td>ctx.stroke()</td><td>描邊當前路徑</td></tr>
+      <tr><td>ctx.createRadialGradient(x0,y0,r0,x1,y1,r1)</td><td>建立徑向漸層</td></tr>
+      <tr><td>ctx.createLinearGradient(x0,y0,x1,y1)</td><td>建立線性漸層</td></tr>
+      <tr><td>ctx.globalAlpha</td><td>全局透明度 [0–1]</td></tr>
+      <tr><td>ctx.shadowBlur / ctx.shadowColor</td><td>光暈效果</td></tr>
+      <tr><td>ctx.setLineDash([on, off])</td><td>虛線模式</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="chapter" id="ref-raf">
+  <div class="chapter-header">
+    <div class="chapter-num">Quick Reference</div>
+    <h2 class="chapter-title">RAF 動畫 <em>最小模板</em></h2>
+  </div>
+  <div class="section">
+    <div class="code-block">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-label">可直接複製使用的動畫骨架</span><span class="code-lang">JS</span></div>
+      <pre><span class="kw">const</span> <span class="vr">canvas</span> = <span class="vr">document</span>.<span class="fn">getElementById</span>(<span class="str">'myCanvas'</span>);
+<span class="kw">const</span> <span class="vr">ctx</span>    = <span class="vr">canvas</span>.<span class="fn">getContext</span>(<span class="str">'2d'</span>);
+<span class="kw">const</span> <span class="vr">dpr</span>    = <span class="vr">window</span>.<span class="pr">devicePixelRatio</span> || <span class="num">1</span>;
+<span class="kw">const</span> <span class="vr">W</span> = <span class="num">600</span>, <span class="vr">H</span> = <span class="num">400</span>;
+<span class="vr">canvas</span>.<span class="pr">width</span>  = <span class="vr">W</span> * <span class="vr">dpr</span>; <span class="vr">canvas</span>.<span class="pr">height</span> = <span class="vr">H</span> * <span class="vr">dpr</span>;
+<span class="vr">canvas</span>.<span class="pr">style.width</span>  = <span class="vr">W</span>+<span class="str">'px'</span>; <span class="vr">canvas</span>.<span class="pr">style.height</span> = <span class="vr">H</span>+<span class="str">'px'</span>;
+<span class="vr">ctx</span>.<span class="fn">setTransform</span>(<span class="vr">dpr</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="vr">dpr</span>,<span class="num">0</span>,<span class="num">0</span>);
+
+<span class="kw">let</span> <span class="vr">lastTs</span> = <span class="kw">null</span>;
+<span class="kw">let</span> <span class="vr">state</span>  = { <span class="pr">angle</span>: <span class="num">0</span> }; <span class="cmt">// 你的動畫狀態</span>
+
+<span class="kw">function</span> <span class="fn">update</span>(<span class="vr">dt</span>) {
+  <span class="vr">state</span>.<span class="pr">angle</span> += <span class="vr">dt</span> * <span class="fn">Math.PI</span>; <span class="cmt">// 每秒旋轉 π 弧度</span>
+}
+
+<span class="kw">function</span> <span class="fn">render</span>() {
+  <span class="vr">ctx</span>.<span class="fn">clearRect</span>(<span class="num">0</span>,<span class="num">0</span>,<span class="vr">W</span>,<span class="vr">H</span>);
+  <span class="cmt">// ... 你的繪圖程式碼 ...</span>
+}
+
+<span class="kw">function</span> <span class="fn">loop</span>(<span class="vr">ts</span>) {
+  <span class="kw">if</span> (!<span class="vr">lastTs</span>) <span class="vr">lastTs</span> = <span class="vr">ts</span>;
+  <span class="kw">const</span> <span class="vr">dt</span> = <span class="fn">Math.min</span>((<span class="vr">ts</span> - <span class="vr">lastTs</span>) / <span class="num">1000</span>, <span class="num">0.05</span>);
+  <span class="vr">lastTs</span> = <span class="vr">ts</span>;
+  <span class="fn">update</span>(<span class="vr">dt</span>);
+  <span class="fn">render</span>();
+  <span class="fn">requestAnimationFrame</span>(<span class="fn">loop</span>);
+}
+<span class="fn">requestAnimationFrame</span>(<span class="fn">loop</span>);</pre>
+    </div>
+  </div>
+</section>
+
+</div><!-- /#main -->
+
+<a id="backtop" href="#" title="Back to top">↑</a>
+
+<script>
+// ══════════════════════════════════════════
+//  PROGRESS BAR + BACKTOP + NAV ACTIVE
+// ══════════════════════════════════════════
+window.addEventListener('scroll', () => {
+  const max = document.body.scrollHeight - window.innerHeight;
+  const pct = (window.scrollY / max) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+
+  const bt = document.getElementById('backtop');
+  if (window.scrollY > 300) bt.classList.add('visible');
+  else bt.classList.remove('visible');
+
+  // Active nav
+  const chapters = document.querySelectorAll('[id^="ch"], [id^="ref"]');
+  let current = '';
+  chapters.forEach(c => {
+    if (c.getBoundingClientRect().top <= 120) current = c.id;
+  });
+  document.querySelectorAll('.nav-link').forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+});
+
+// ══════════════════════════════════════════
+//  HERO MINI CLOCK
+// ══════════════════════════════════════════
+(function() {
+  const c = document.getElementById('heroMiniClock');
+  if (!c) return;
+  const x = c.getContext('2d');
+  const S = 80;
+  c.width = 160; c.height = 160;
+
+  function drawMini() {
+    x.clearRect(0, 0, 160, 160);
+    const now = new Date();
+    const h = now.getHours()%12, m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
+    const hA = ((h+m/60)/12)*Math.PI*2 - Math.PI/2;
+    const mA = ((m+s/60)/60)*Math.PI*2 - Math.PI/2;
+    const sA = ((s+ms/1000)/60)*Math.PI*2 - Math.PI/2;
+
+    // Face
+    const g = x.createRadialGradient(74,74,4,80,80,72);
+    g.addColorStop(0,'rgba(80,180,30,0.15)'); g.addColorStop(1,'rgba(20,60,5,0.05)');
+    x.beginPath(); x.arc(80,80,70,0,Math.PI*2); x.fillStyle=g; x.fill();
+    x.beginPath(); x.arc(80,80,70,0,Math.PI*2); x.strokeStyle='rgba(109,179,63,0.5)'; x.lineWidth=1.5; x.stroke();
+
+    // Tick marks
+    for(let i=0;i<12;i++){
+      const a=(i/12)*Math.PI*2-Math.PI/2;
+      x.save(); x.beginPath();
+      x.moveTo(80+Math.cos(a)*60, 80+Math.sin(a)*60);
+      x.lineTo(80+Math.cos(a)*68, 80+Math.sin(a)*68);
+      x.strokeStyle='rgba(109,179,63,0.7)'; x.lineWidth=1.5; x.stroke(); x.restore();
+    }
+
+    // Hands
+    [[hA, 36, 3, '#1e4a88'],[mA, 52, 2, '#d85020'],[sA, 60, 1, '#28d838']].forEach(([a,l,w,col])=>{
+      x.save(); x.beginPath(); x.moveTo(80,80); x.lineTo(80+Math.cos(a)*l, 80+Math.sin(a)*l);
+      x.strokeStyle=col; x.lineWidth=w; x.lineCap='round'; x.shadowBlur=4; x.shadowColor=col+'88'; x.stroke(); x.restore();
+    });
+
+    // Center
+    x.beginPath(); x.arc(80,80,5,0,Math.PI*2); x.fillStyle='#6db33f'; x.fill();
+
+    requestAnimationFrame(drawMini);
+  }
+  drawMini();
+})();
+
+// ══════════════════════════════════════════
+//  DEMO: GRID COMPARISON
+// ══════════════════════════════════════════
+let currentMode = 'jitter';
+function demoGridMode(mode) {
+  currentMode = mode;
+  const captions = {
+    pure: '純隨機：圖案扎堆、大面積空白，分佈不均',
+    grid: '完美網格：規律呆板，一眼看出人工感',
+    jitter: '網格 + 偏移（本專案使用）：均勻卻自然'
+  };
+  document.getElementById('gridCaption').textContent = captions[mode];
+  drawGridDemo(mode);
+}
+
+function drawGridDemo(mode) {
+  const c = document.getElementById('demoGrid');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a1506'; ctx.fillRect(0, 0, W, H);
+
+  // Seeded rand
+  let seed = 12345;
+  function rnd() {
+    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+    return (seed >>> 0) / 0xffffffff;
+  }
+  seed = 12345;
+
+  const TILE = 40;
+  const cols = Math.ceil(W / TILE) + 1;
+  const rows = Math.ceil(H / TILE) + 1;
+  const n = 80;
+
+  ctx.strokeStyle = 'rgba(109,179,63,0.7)'; ctx.lineWidth = 1;
+
+  if (mode === 'pure') {
+    seed = 42;
+    for (let i = 0; i < n; i++) {
+      const x = rnd() * (W - 20) + 10;
+      const y = rnd() * (H - 20) + 10;
+      drawDot(ctx, x, y);
+    }
+  } else if (mode === 'grid') {
+    seed = 99;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * TILE + TILE/2;
+        const y = row * TILE + TILE/2;
+        if (x < W && y < H) drawDot(ctx, x, y);
+      }
+    }
+  } else {
+    seed = 77;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * TILE + rnd() * TILE * 0.7 + TILE * 0.15;
+        const y = row * TILE + rnd() * TILE * 0.7 + TILE * 0.15;
+        if (x < W && y < H) drawDot(ctx, x, y);
+      }
+    }
+  }
+}
+
+function drawDot(ctx, x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  const size = 6 + Math.random() * 4;
+  const angle = Math.random() * Math.PI * 2;
+  ctx.rotate(angle);
+  // Simple leaf
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.bezierCurveTo(size*0.6, -size*0.5, size*0.6, size*0.2, 0, size*0.3);
+  ctx.bezierCurveTo(-size*0.6, size*0.2, -size*0.6, -size*0.5, 0, -size);
+  ctx.fillStyle = 'rgba(109,179,63,0.15)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(109,179,63,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.restore();
+}
+demoGridMode('jitter');
+
+// ══════════════════════════════════════════
+//  DEMO: COORDINATE SYSTEM
+// ══════════════════════════════════════════
+(function() {
+  const c = document.getElementById('demoCoord');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  ctx.fillStyle = '#090f05'; ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(109,179,63,0.1)'; ctx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Axes
+  ctx.strokeStyle = 'rgba(109,179,63,0.7)'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.stroke(); // X
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, H); ctx.stroke(); // Y
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle = '#6db33f'; ctx.font = "12px 'JetBrains Mono', monospace";
+  ctx.fillText('(0, 0)', 6, 16);
+  ctx.fillText('x →', W-50, 16);
+  ctx.save(); ctx.translate(14, H-10); ctx.rotate(-Math.PI/2); ctx.fillText('y ↓', 0, 0); ctx.restore();
+
+  // Corner coords
+  ctx.fillStyle = 'rgba(109,179,63,0.5)'; ctx.font = "10px 'JetBrains Mono', monospace";
+  ctx.fillText(`(${W}, 0)`, W-70, 16);
+  ctx.fillText(`(0, ${H})`, 6, H-6);
+  ctx.fillText(`(${W}, ${H})`, W-80, H-6);
+
+  // Clock center reference
+  const cx = W*0.55, cy = H*0.5;
+  ctx.strokeStyle = 'rgba(232,160,32,0.4)'; ctx.lineWidth = 0.8; ctx.setLineDash([3,5]);
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw clock angles
+  ctx.fillStyle = 'rgba(232,160,32,0.8)';
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(232,160,32,0.8)'; ctx.font = "11px 'JetBrains Mono', monospace";
+  ctx.fillText('CX, CY', cx+6, cy-6);
+
+  // Sample angle: 12 o'clock = -π/2
+  const angles = [
+    { a: -Math.PI/2, label: '12點 (-π/2)', col: '#28d838' },
+    { a: 0,          label: '3點 (0)',      col: '#d85020' },
+    { a: Math.PI/2,  label: '6點 (π/2)',    col: '#1e4a88' },
+    { a: Math.PI,    label: '9點 (π)',       col: '#e8a020' },
+  ];
+  const R = 70;
+  angles.forEach(({a, label, col}) => {
+    const ex = cx + Math.cos(a) * R, ey = cy + Math.sin(a) * R;
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.shadowBlur = 4; ctx.shadowColor = col;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ex, ey, 3.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = col; ctx.font = "9px 'JetBrains Mono', monospace";
+    const lx = cx + Math.cos(a) * (R+18), ly = cy + Math.sin(a) * (R+18);
+    ctx.textAlign = 'center'; ctx.fillText(label, lx, ly);
+    ctx.restore();
+  });
+
+  // Arc direction indicator
+  ctx.strokeStyle = 'rgba(109,179,63,0.4)'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([2,3]);
+  ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI/2, Math.PI/2);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(109,179,63,0.6)'; ctx.font = "9px 'JetBrains Mono', monospace";
+  ctx.textAlign = 'center'; ctx.fillText('順時針 +', cx + R + 28, cy - 8);
+})();
+
+// ══════════════════════════════════════════
+//  DEMO: SAVE/RESTORE
+// ══════════════════════════════════════════
+(function() {
+  const c = document.getElementById('demoSaveRestore');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  ctx.fillStyle = '#090f05'; ctx.fillRect(0, 0, W, H);
+
+  // Left side: WITHOUT save/restore
+  ctx.save();
+  ctx.fillStyle = 'rgba(224,80,64,0.15)'; ctx.fillRect(0, 0, W/2-1, H);
+  ctx.restore();
+
+  // Header
+  ctx.fillStyle = 'rgba(224,80,64,0.8)'; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.textAlign = 'center';
+  ctx.fillText('❌ 沒有 save/restore', W/4, 18);
+
+  ctx.save();
+  ctx.translate(60, 50); ctx.rotate(0.3); ctx.strokeStyle = '#e05040'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.rect(-20, -20, 40, 40); ctx.stroke();
+  // This transform carries over!
+  ctx.translate(80, 0); ctx.rotate(0.3);
+  ctx.strokeStyle = '#e0a040'; ctx.beginPath(); ctx.rect(-20, -20, 40, 40); ctx.stroke();
+  ctx.translate(80, 0); ctx.rotate(0.3);
+  ctx.strokeStyle = '#6db33f'; ctx.beginPath(); ctx.rect(-20, -20, 40, 40); ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(224,80,64,0.6)'; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.textAlign = 'center';
+  ctx.fillText('旋轉累積了！', W/4, H-8);
+
+  // Divider
+  ctx.strokeStyle = 'rgba(109,179,63,0.2)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+
+  // Right side: WITH save/restore
+  ctx.fillStyle = 'rgba(109,179,63,0.08)'; ctx.fillRect(W/2+1, 0, W/2-1, H);
+
+  ctx.fillStyle = 'rgba(109,179,63,0.8)'; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.textAlign = 'center';
+  ctx.fillText('✅ 有 save/restore', W*3/4, 18);
+
+  const startX = W/2 + 50;
+  [[startX, 60, 0, '#e05040'], [startX+80, 60, 0, '#e0a040'], [startX+160, 60, 0, '#6db33f']].forEach(([x, y, r, col]) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(0.3);
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.rect(-20, -20, 40, 40); ctx.stroke();
+    ctx.restore(); // Back to original state!
+  });
+
+  ctx.fillStyle = 'rgba(109,179,63,0.6)'; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.textAlign = 'center';
+  ctx.fillText('每個都獨立旋轉！', W*3/4, H-8);
+})();
+
+// ══════════════════════════════════════════
+//  DEMO: TRANSFORM ORDER
+// ══════════════════════════════════════════
+function demoTransformMode(mode) {
+  const c = document.getElementById('demoTransform');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#090f05'; ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2;
+  const D = 80;
+  const angle = 0.8;
+
+  // Origin
+  ctx.fillStyle = 'rgba(109,179,63,0.3)'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(109,179,63,0.5)'; ctx.font = "9px 'JetBrains Mono'"; ctx.textAlign='center';
+  ctx.fillText('原點', cx, cy-8);
+
+  if (mode === 'tr') {
+    // translate then rotate: object rotates in-place at destination
+    ctx.save();
+    ctx.translate(cx + D, cy);   // move to destination
+    ctx.rotate(angle);             // rotate around destination
+    ctx.strokeStyle = '#28d838'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.rect(-25, -20, 50, 40); ctx.stroke();
+    ctx.fillStyle = '#28d838'; ctx.font = "9px 'JetBrains Mono'"; ctx.textAlign='center';
+    ctx.fillText('以目標點旋轉', 0, -28);
+    ctx.restore();
+
+    // show translate vector
+    ctx.save(); ctx.strokeStyle = '#e8a020'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx+D, cy); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+
+    document.getElementById('transformCaption').textContent = 'translate → rotate：先移動原點，再旋轉（物件在目標位置原地旋轉）';
+  } else {
+    // rotate then translate: object orbits around origin
+    ctx.save();
+    ctx.rotate(angle);             // rotate around origin first
+    ctx.translate(D, 0);          // then move (the direction is now rotated!)
+    ctx.strokeStyle = '#e05040'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.rect(-25, -20, 50, 40); ctx.stroke();
+    ctx.fillStyle = '#e05040'; ctx.font = "9px 'JetBrains Mono'"; ctx.textAlign='center';
+    ctx.fillText('繞原點公轉', 0, -28);
+    ctx.restore();
+
+    // show rotation arc
+    ctx.save(); ctx.strokeStyle = '#e8a020'; ctx.lineWidth=1.2; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.arc(cx, cy, D, -0.4, angle, false); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+
+    document.getElementById('transformCaption').textContent = 'rotate → translate：先繞原點旋轉，再沿（旋轉後的）方向移動（物件繞原點公轉）';
+  }
+}
+demoTransformMode('tr');
+
+// ══════════════════════════════════════════
+//  DEMO: CHARACTER BUILD
+// ══════════════════════════════════════════
+let charStep = 0;
+function charBuildStep(s) {
+  charStep = s;
+  const captions = {
+    1: '① 四肢（腿 + 手臂）— 最底層，後續會被身體遮蓋',
+    2: '② 身體（徑向漸層橢圓）— 覆蓋在四肢上方',
+    3: '③ 頭部（漸層圓形）— 置於身體右上角，側面行走感',
+    4: '④ 衣物細節（領帶）— 身體之上的小元素',
+    5: '完整角色 — 所有層疊合後的完整效果'
+  };
+  document.getElementById('charBuildCaption').textContent = captions[s];
+  drawCharBuildDemo(s);
+}
+
+function drawCharBuildDemo(step) {
+  const c = document.getElementById('demoCharBuild');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d1208'; ctx.fillRect(0, 0, W, H);
+
+  // Draw 3 versions side by side based on step
+  const items = step === 5 ? [1,2,3,4,5] : [step];
+  const totalItems = step === 5 ? 1 : 1;
+  
+  ctx.save();
+  ctx.translate(W/2, H/2 + 10);
+  ctx.scale(1.8, 1.8);
+
+  const R = 13, bob = 0, frame = 1;
+  const legL = 0.45, legR = 0.75;
+  const armL = -0.6, armR = -1.0;
+
+  function limb2(x1,y1,x2,y2) {
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+
+  if (step >= 1) {
+    // Limbs
+    ctx.strokeStyle='#222'; ctx.lineWidth=2.8; ctx.lineCap='round';
+    limb2(0,R+bob, Math.sin(legL)*14, R+bob+Math.cos(legL)*14);
+    limb2(0,R+bob, Math.sin(-legR)*14, R+bob+Math.cos(legR)*14);
+    [[legL],[-legR]].forEach(([a])=>{
+      ctx.fillStyle='#222';
+      ctx.beginPath(); ctx.ellipse(Math.sin(a)*14+2, R+bob+Math.cos(a)*14, 4,2.2, 0.15,0,Math.PI*2);
+      ctx.fill();
+    });
+    limb2(-R*0.4,-2+bob, -R*0.4+Math.cos(armL)*12, -2+bob+Math.sin(armL)*12);
+    limb2( R*0.4,-2+bob,  R*0.4+Math.cos(armR)*12, -2+bob+Math.sin(armR)*12);
+  }
+
+  if (step >= 2) {
+    const bodyGrad = ctx.createRadialGradient(-4,-8+bob,1,0,0+bob,R*1.4);
+    bodyGrad.addColorStop(0,'#5888cc'); bodyGrad.addColorStop(1,'#1a3a7a');
+    ctx.beginPath(); ctx.ellipse(0,0+bob,R,R*1.05,0,0,Math.PI*2);
+    ctx.fillStyle=bodyGrad; ctx.fill();
+    ctx.strokeStyle='#0a2050'; ctx.lineWidth=1.8; ctx.stroke();
+  }
+
+  if (step >= 4) {
+    ctx.strokeStyle='#ee2222'; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(0,-6+bob); ctx.lineTo(-1,0+bob); ctx.lineTo(1,4+bob); ctx.stroke();
+  }
+
+  if (step >= 3) {
+    const hx=R*0.55, hy=-R*0.9+bob;
+    const hg = ctx.createRadialGradient(hx-3,hy-3,1,hx,hy,12);
+    hg.addColorStop(0,'#ffe8b0'); hg.addColorStop(1,'#f5c870');
+    ctx.beginPath(); ctx.arc(hx,hy,12,0,Math.PI*2);
+    ctx.fillStyle=hg; ctx.fill();
+    ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.stroke();
+
+    if (step >= 5) {
+      // glasses
+      ctx.strokeStyle='#444'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.arc(hx-4,hy,3.2,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx+4,hy,3.2,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hx-0.8,hy); ctx.lineTo(hx+0.8,hy); ctx.stroke();
+      ctx.fillStyle='#222';
+      ctx.beginPath(); ctx.arc(hx-4,hy,1.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(hx+4,hy,1.3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(255,160,80,0.2)';
+      ctx.beginPath(); ctx.ellipse(hx-8,hy+3,3.5,2.5,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx+8,hy+3,3.5,2.5,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  ctx.restore();
+
+  // Step label
+  const stepColors = {1:'#e05040',2:'#1e4a88',3:'#e8a020',4:'#d85020',5:'#6db33f'};
+  ctx.fillStyle = stepColors[step] || '#6db33f';
+  ctx.font = "bold 11px 'JetBrains Mono', monospace"; ctx.textAlign='center';
+}
+
+charBuildStep(5);
+
+// ══════════════════════════════════════════
+//  DEMO: BEZIER CURVE
+// ══════════════════════════════════════════
+(function() {
+  const c = document.getElementById('demoBezier');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  const P0 = {x: 100, y: 160};
+  const P3 = {x: W-100, y: 160};
+  let CP1 = {x: 160, y: 40};
+  let CP2 = {x: W-160, y: 280};
+
+  let dragging = null;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#090f05'; ctx.fillRect(0, 0, W, H);
+
+    // Control lines
+    ctx.save(); ctx.setLineDash([4,6]); ctx.strokeStyle='rgba(232,160,32,0.35)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(P0.x, P0.y); ctx.lineTo(CP1.x, CP1.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(P3.x, P3.y); ctx.lineTo(CP2.x, CP2.y); ctx.stroke();
+    ctx.restore();
+
+    // Bezier curve
+    ctx.beginPath(); ctx.moveTo(P0.x, P0.y);
+    ctx.bezierCurveTo(CP1.x, CP1.y, CP2.x, CP2.y, P3.x, P3.y);
+    ctx.strokeStyle = '#6db33f'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.shadowBlur = 6; ctx.shadowColor = '#6db33f88';
+    ctx.stroke(); ctx.shadowBlur = 0;
+
+    // Points
+    [[P0, '#fff', 'P0\n起點'], [P3, '#fff', 'P3\n終點'], [CP1, '#e8a020', 'CP1\n控制點1'], [CP2, '#e8a020', 'CP2\n控制點2']].forEach(([p, col, label]) => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p === CP1 || p === CP2 ? 7 : 5, 0, Math.PI*2);
+      ctx.fillStyle = col; ctx.fill();
+      ctx.strokeStyle = '#0d1208'; ctx.lineWidth = 1.5; ctx.stroke();
+      const lines = label.split('\n');
+      ctx.fillStyle = col; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.textAlign = 'center';
+      lines.forEach((l, i) => ctx.fillText(l, p.x, p.y - 12 - i*11));
+    });
+  }
+
+  function getPoint(ex, ey) {
+    const rect = c.getBoundingClientRect();
+    const scaleX = c.width / rect.width;
+    const scaleY = c.height / rect.height;
+    return { x: (ex - rect.left) * scaleX, y: (ey - rect.top) * scaleY };
+  }
+
+  function nearest(pt) {
+    const pts = [CP1, CP2];
+    let best = null, bd = Infinity;
+    pts.forEach(p => {
+      const d = Math.hypot(pt.x-p.x, pt.y-p.y);
+      if (d < 20 && d < bd) { bd = d; best = p; }
+    });
+    return best;
+  }
+
+  c.addEventListener('mousedown', e => { dragging = nearest(getPoint(e.clientX, e.clientY)); });
+  c.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const pt = getPoint(e.clientX, e.clientY);
+    dragging.x = pt.x; dragging.y = pt.y;
+    draw();
+  });
+  c.addEventListener('mouseup', () => dragging = null);
+  c.addEventListener('touchstart', e => {
+    e.preventDefault();
+    dragging = nearest(getPoint(e.touches[0].clientX, e.touches[0].clientY));
+  }, {passive: false});
+  c.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const pt = getPoint(e.touches[0].clientX, e.touches[0].clientY);
+    dragging.x = pt.x; dragging.y = pt.y;
+    draw();
+  }, {passive: false});
+  c.addEventListener('touchend', () => dragging = null);
+
+  draw();
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,2343 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D輝光管數字時鐘 | 3DRetro Nixie Glow Tube Clock</title>
+    <!-- Google Fonts for retro industrial type -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;700&family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Loading Three.js and OrbitControls from highly stable CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tailwind CSS CDN for dynamic utilities -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+      /* Base font styles & overall look */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #050505;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, inherit;
+        user-select: none;
+        color: #e2e8f0;
+        cursor: crosshair;
+      }
+      
+      /* Dynamic CRT scanline overlay */
+      .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          rgba(18, 16, 16, 0) 50%, 
+          rgba(0, 0, 0, 0.2) 50%
+        );
+        background-size: 100% 4px;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      
+      /* Subtle vignette for vintage camera atmosphere */
+      .vignette {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.70) 100%);
+        z-index: 11;
+        pointer-events: none;
+      }
+      
+      /* Custom styled scrollbar for Settings Pop-up */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(249, 115, 22, 0.25);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(249, 115, 22, 0.6);
+      }
+    </style>
+  </head>
+  <body class="relative min-h-screen">
+    <div id="root"></div> <!-- Standard div for the app assets if any -->
+    
+    <!-- Scanline & Vignette atmospheric effects -->
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- MAIN WEBGL CONTAINER -->
+    <div id="webgl-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- HEADER BAR -->
+    <header class="absolute top-0 left-0 w-full px-8 py-5 border-b border-white/5 bg-black/45 backdrop-blur-md z-20 flex items-center justify-between select-none">
+      <div class="flex items-center gap-4">
+        <div>
+          <h1 class="text-lg sm:text-xl font-light tracking-[0.4em] uppercase opacity-90 text-white">
+            Lux-Chrono <span class="text-orange-500 font-bold italic">V.1</span>
+          </h1>
+          <p class="text-[10px] uppercase tracking-widest opacity-40 font-mono">Advanced Filament Chronometer</p>
+        </div>
+      </div>
+      <div class="flex gap-6 items-center">
+        <div class="hidden sm:flex flex-col items-end font-mono">
+          <span class="text-[10px] uppercase tracking-widest text-orange-500 font-semibold">System Active</span>
+          <span class="text-[10px] opacity-40 uppercase tracking-tighter">42.5°C Core Temp</span>
+        </div>
+        <button id="config-toggle-btn" onclick="togglePopup()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-orange-500 hover:text-orange-400 font-medium rounded-sm text-[11px] uppercase tracking-widest transition-all duration-150 cursor-pointer shadow-lg">
+          Parameters 設定調校
+        </button>
+      </div>
+    </header>
+
+    <!-- FLOATING INTERACTION INSTRUCTIONS -->
+    <div class="absolute top-24 left-8 z-20 pointer-events-none select-none hidden md:flex flex-col gap-1 font-mono text-[9px] uppercase tracking-widest opacity-35 text-white leading-relaxed">
+      <div>[左鍵拖曳 / Left Click] 旋轉角度</div>
+      <div>[右鍵拖曳 / Right Click] 移動相機</div>
+      <div>[滾輪縮放 / Scroll] 觀測鏡頭</div>
+    </div>
+
+    <!-- PRESETS & SAVES BAR (BOTTOM LEFT COZY PILOTS) -->
+    <div class="absolute bottom-6 left-6 z-20 flex gap-2.5 max-w-[calc(100%-3rem)] select-none">
+      <button onclick="togglePresetsPopup(event)" id="presets-toggle-btn" class="px-3.5 py-2.5 rounded-md text-[11.5px] md:text-xs font-sans font-bold border border-white/15 bg-zinc-950/90 text-white hover:bg-zinc-850 hover:border-orange-500/40 cursor-pointer duration-150 shadow-lg flex items-center gap-1.5 transition-all active:scale-95">
+        🎨 風格預設 / Presets
+      </button>
+      <button onclick="toggleCustomSavesPopup(event)" id="custom-saves-toggle-btn" class="px-3.5 py-2.5 rounded-md text-[11.5px] md:text-xs font-sans font-bold border border-white/15 bg-zinc-950/90 text-white hover:bg-zinc-850 hover:border-orange-500/40 cursor-pointer duration-150 shadow-lg flex items-center gap-1.5 transition-all active:scale-95">
+        📂 自訂存檔 / Saves
+      </button>
+
+      <!-- POPUP: PRESETS -->
+      <div id="popup-presets" class="hidden absolute bottom-14 left-0 w-[275px] sm:w-[310px] bg-[#0c0c0e]/95 border border-white/15 rounded-md shadow-2xl z-25 p-4 flex flex-col gap-2.5 backdrop-blur-xl" style="box-shadow: 0 15px 40px rgba(0,0,0,0.95);">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-1">
+          <span class="text-[10px] md:text-[11px] uppercase tracking-widest font-mono font-bold text-slate-300">🎨 PRESET PROFILES / 風格預設</span>
+          <button onclick="closePresetsPopup()" class="text-white/40 hover:text-white text-base cursor-pointer px-1">&times;</button>
+        </div>
+        <button onclick="applyThemeSet('classic')" class="w-full py-2 px-3 text-left rounded-md text-[11px] md:text-xs font-sans border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-orange-500/50 duration-150 text-white cursor-pointer shadow-sm flex items-center gap-2">
+          <span class="text-xs">🔸</span> 經典輝光 / CLASSIC
+        </button>
+        <button onclick="applyThemeSet('cyberpunk')" class="w-full py-2 px-3 text-left rounded-md text-[11px] md:text-xs font-sans border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-teal-400/50 duration-150 text-white cursor-pointer shadow-sm flex items-center gap-2">
+          <span class="text-xs">🚀</span> 賽博科幻 / CYBER
+        </button>
+        <button onclick="applyThemeSet('atomic')" class="w-full py-2 px-3 text-left rounded-md text-[11px] md:text-xs font-sans border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-green-400/50 duration-150 text-white cursor-pointer shadow-sm flex items-center gap-2">
+          <span class="text-xs">🟢</span> 黃昏射線 / ATOMIC
+        </button>
+        <button onclick="applyThemeSet('prism')" class="w-full py-2 px-3 text-left rounded-md text-[11px] md:text-xs font-sans border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-fuchsia-400/50 duration-150 text-white cursor-pointer shadow-sm flex items-center gap-2">
+          <span class="text-xs">🌈</span> 彩虹極光 / PRISM
+        </button>
+        <button onclick="applyThemeSet('frozen')" class="w-full py-2 px-3 text-left rounded-md text-[11px] md:text-xs font-sans border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-sky-400/50 duration-150 text-white cursor-pointer shadow-sm flex items-center gap-2">
+          <span class="text-xs">❄️</span> 極地白光 / FROZEN
+        </button>
+      </div>
+
+      <!-- POPUP: CUSTOM SAVES -->
+      <div id="popup-custom-saves" class="hidden absolute bottom-14 left-0 w-[295px] sm:w-[335px] bg-[#0c0c0e]/95 border border-white/15 rounded-md shadow-2xl z-25 p-4 flex flex-col gap-3 backdrop-blur-xl" style="box-shadow: 0 15px 40px rgba(0,0,0,0.95);">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-1">
+          <span class="text-[10px] md:text-[11px] uppercase tracking-widest font-mono font-bold text-slate-300">📂 CUSTOM SAVES / 自訂存檔</span>
+          <div class="flex items-center gap-1.5">
+            <button onclick="resetCustomPreset1()" class="text-[9.5px] md:text-[10.5px] text-orange-400 hover:text-white border border-white/15 hover:border-orange-500/40 bg-zinc-950 px-2 py-0.5 rounded cursor-pointer transition-all duration-150 font-sans tracking-wide" title="將自訂效果1重設為初始預設效果值">
+              重設Reset
+            </button>
+            <button onclick="closeCustomSavesPopup()" class="text-white/40 hover:text-white text-base cursor-pointer px-1">&times;</button>
+          </div>
+        </div>
+        
+        <div class="flex flex-col gap-2.5">
+          <!-- Slot 1 -->
+          <span class="inline-flex rounded-sm border border-white/15 bg-black/75 overflow-hidden shadow-sm w-full justify-between items-center">
+            <button id="load-btn-1" onclick="applyCustomPreset(1)" class="flex-1 py-2.5 text-[11.5px] font-sans text-slate-200 hover:text-white duration-150 border-r border-white/15 text-left pl-3 flex items-center gap-1.5 cursor-pointer">
+              📂 自訂效果1
+            </button>
+            <button id="save-btn-1" onclick="saveCustomPreset(1)" class="px-3.5 py-2.5 text-[11px] font-sans font-bold text-orange-400 hover:text-orange-300 hover:bg-orange-950/20 duration-150 flex items-center gap-0.5 cursor-pointer" title="將目前的參數儲存到自訂效果1">
+              💾 儲存
+            </button>
+          </span>
+
+          <!-- Slot 2 -->
+          <span class="inline-flex rounded-sm border border-white/15 bg-black/75 overflow-hidden shadow-sm w-full justify-between items-center">
+            <button id="load-btn-2" onclick="applyCustomPreset(2)" class="flex-1 py-2.5 text-[11.5px] font-sans text-slate-200 hover:text-white duration-150 border-r border-white/15 text-left pl-3 flex items-center gap-1.5 cursor-pointer">
+              📂 自訂效果2
+            </button>
+            <button id="save-btn-2" onclick="saveCustomPreset(2)" class="px-3.5 py-2.5 text-[11px] font-sans font-bold text-orange-400 hover:text-orange-300 hover:bg-orange-950/20 duration-150 flex items-center gap-0.5 cursor-pointer" title="將目前的參數儲存到自訂效果2">
+              💾 儲存
+            </button>
+          </span>
+
+          <!-- Slot 3 -->
+          <span class="inline-flex rounded-sm border border-white/15 bg-black/75 overflow-hidden shadow-sm w-full justify-between items-center">
+            <button id="load-btn-3" onclick="applyCustomPreset(3)" class="flex-1 py-2.5 text-[11.5px] font-sans text-slate-200 hover:text-white duration-150 border-r border-white/15 text-left pl-3 flex items-center gap-1.5 cursor-pointer">
+              📂 自訂效果3
+            </button>
+            <button id="save-btn-3" onclick="saveCustomPreset(3)" class="px-3.5 py-2.5 text-[11px] font-sans font-bold text-orange-400 hover:text-orange-300 hover:bg-orange-950/20 duration-150 flex items-center gap-0.5 cursor-pointer" title="將目前的參數儲存到自訂效果3">
+              💾 儲存
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- POP-UP FLOATING PARAMETERS DASHBOARD (DRAGGABLE) -->
+    <div id="popup-control" class="hidden absolute top-28 right-6 w-[360px] md:w-[500px] max-h-[calc(100vh-10rem)] bg-[#0a0a0c]/95 border border-white/10 rounded-sm shadow-2xl z-30 flex flex-col backdrop-blur-xl overflow-hidden" style="box-shadow: 0 20px 50px rgba(0,0,0,0.95);">
+      
+      <!-- Pop-up Header (Draggable Zone) -->
+      <div id="popup-header" class="px-5 py-4 bg-zinc-900/80 border-b border-white/15 flex items-center justify-between cursor-move select-none">
+        <div class="flex items-center gap-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
+          <span class="font-sans text-sm uppercase tracking-widest font-bold text-white">Chrono Parameters 設定調校</span>
+        </div>
+        <button onclick="togglePopup()" class="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 text-white/60 hover:text-white text-sm cursor-pointer duration-150 border border-white/10">
+          ✕
+        </button>
+      </div>
+
+      <!-- Tab Selectors -->
+      <div class="flex border-b border-white/10 bg-black/50 text-[11px] md:text-xs tracking-wider uppercase font-sans font-semibold">
+        <button onclick="switchTab('colors')" id="tab-btn-colors" class="flex-1 py-3.5 text-center border-b-2 border-orange-500 text-orange-500 cursor-pointer duration-150">
+          🎨 Filament / 顏色
+        </button>
+        <button onclick="switchTab('effects')" id="tab-btn-effects" class="flex-1 py-3.5 text-center border-b-2 border-transparent text-white/50 hover:text-white cursor-pointer duration-150">
+          ✨ Optics / 發光
+        </button>
+        <button onclick="switchTab('desk')" id="tab-btn-desk" class="flex-1 py-3.5 text-center border-b-2 border-transparent text-white/50 hover:text-white cursor-pointer duration-150">
+          🪵 Reflection / 倒影
+        </button>
+      </div>
+
+      <!-- Tab Contents Area -->
+      <div class="p-5 flex-1 overflow-y-auto custom-scrollbar text-sm space-y-6">
+        
+        <!-- ======================= TAB 1: COLORS (16 COLORS) ======================= -->
+        <div id="tab-content-colors" class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+            <span class="text-[12.5px] font-sans text-slate-300 font-bold tracking-wide">Independent 16-Way Filaments / 管孔發光設計：</span>
+            <!-- Shortcut Sync buttons -->
+            <div class="flex gap-2 text-[10.5px] uppercase font-sans font-semibold">
+              <button onclick="syncAllColors('digits')" class="px-2.5 py-1 rounded-md border border-white/15 text-white/70 bg-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
+                Sync Digits
+              </button>
+              <button onclick="syncAllColors('bases')" class="px-2.5 py-1 rounded-md border border-white/15 text-white/70 bg-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
+                Sync Bases
+              </button>
+            </div>
+          </div>
+          
+          <!-- Visual Mapping Grid -->
+          <div class="bg-black/45 rounded-md p-4 border border-white/10 space-y-4 shadow-inner">
+            <div class="grid grid-cols-8 gap-1 text-center text-[11px] uppercase tracking-wider font-bold text-slate-400 pb-2 border-b border-white/10">
+              <div>H1</div>
+              <div>H2</div>
+              <div>C1</div>
+              <div>M1</div>
+              <div>M2</div>
+              <div>C2</div>
+              <div>S1</div>
+              <div>S2</div>
+            </div>
+            
+            <!-- 6 Digits + 2 Colons Color Selection -->
+            <div class="space-y-4">
+              <!-- Grid Row 1: Filaments (Neon Tubes) -->
+              <div class="space-y-2">
+                <div class="text-[11.5px] uppercase tracking-wider text-orange-400 font-bold font-sans">❶ Filament Glow / 燈管特調：</div>
+                <div class="grid grid-cols-8 gap-2">
+                  <!-- Digit 1 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-0" value="#ff4400" onchange="updateColorParam('digitColors', 0, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D1</span>
+                    <span id="hex-digit-0" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                  <!-- Digit 2 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-1" value="#ff4400" onchange="updateColorParam('digitColors', 1, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D2</span>
+                    <span id="hex-digit-1" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                  <!-- Colon 1 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-orange-500/30 rounded-md">
+                    <input type="color" id="color-sep-0" value="#ffa700" onchange="updateColorParam('separatorColors', 0, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-orange-400">C1</span>
+                    <span id="hex-sep-0" class="text-[8.5px] md:text-[9px] font-mono text-orange-400/60 tracking-tighter select-all font-semibold">#FFA700</span>
+                  </div>
+                  <!-- Digit 3 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-2" value="#ff4400" onchange="updateColorParam('digitColors', 2, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D3</span>
+                    <span id="hex-digit-2" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                  <!-- Digit 4 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-3" value="#ff4400" onchange="updateColorParam('digitColors', 3, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D4</span>
+                    <span id="hex-digit-3" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                  <!-- Colon 2 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-orange-500/30 rounded-md">
+                    <input type="color" id="color-sep-1" value="#ffa700" onchange="updateColorParam('separatorColors', 1, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-orange-400">C2</span>
+                    <span id="hex-sep-1" class="text-[8.5px] md:text-[9px] font-mono text-orange-400/60 tracking-tighter select-all font-semibold">#FFA700</span>
+                  </div>
+                  <!-- Digit 5 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-4" value="#ff4400" onchange="updateColorParam('digitColors', 4, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D5</span>
+                    <span id="hex-digit-4" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                  <!-- Digit 6 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-digit-5" value="#ff4400" onchange="updateColorParam('digitColors', 5, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">D6</span>
+                    <span id="hex-digit-5" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#FF4400</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Grid Row 2: Bottom LED Ring Glow (Base glow) -->
+              <div class="space-y-2 pt-2">
+                <div class="text-[11.5px] uppercase tracking-wider text-[#60a5fa] font-bold font-sans">❷ Base Glowing Chassis / 底座燈孔：</div>
+                <div class="grid grid-cols-8 gap-2">
+                  <!-- Base 1 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-0" value="#0088ff" onchange="updateColorParam('baseColors', 0, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B1</span>
+                    <span id="hex-base-0" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                  <!-- Base 2 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-1" value="#0088ff" onchange="updateColorParam('baseColors', 1, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B2</span>
+                    <span id="hex-base-1" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                  <!-- Base 3 (Colon 1 Base) -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-blue-500/30 rounded-md">
+                    <input type="color" id="color-base-2" value="#ff00ff" onchange="updateColorParam('baseColors', 2, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-blue-400">B3</span>
+                    <span id="hex-base-2" class="text-[8.5px] md:text-[9px] font-mono text-blue-300/60 tracking-tighter select-all font-semibold">#FF00FF</span>
+                  </div>
+                  <!-- Base 4 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-3" value="#0088ff" onchange="updateColorParam('baseColors', 3, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B4</span>
+                    <span id="hex-base-3" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                  <!-- Base 5 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-4" value="#0088ff" onchange="updateColorParam('baseColors', 4, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B5</span>
+                    <span id="hex-base-4" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                  <!-- Base 6 (Colon 2 Base) -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-blue-500/30 rounded-md">
+                    <input type="color" id="color-base-5" value="#ff00ff" onchange="updateColorParam('baseColors', 5, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-blue-400">B6</span>
+                    <span id="hex-base-5" class="text-[8.5px] md:text-[9px] font-mono text-blue-300/60 tracking-tighter select-all font-semibold">#FF00FF</span>
+                  </div>
+                  <!-- Base 7 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-6" value="#0088ff" onchange="updateColorParam('baseColors', 6, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B7</span>
+                    <span id="hex-base-6" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                  <!-- Base 8 -->
+                  <div class="flex flex-col items-center gap-1.5 bg-zinc-950/80 p-1.5 border border-white/10 rounded-md">
+                    <input type="color" id="color-base-7" value="#0088ff" onchange="updateColorParam('baseColors', 7, this.value)" class="w-8 h-8 rounded-sm cursor-pointer border border-white/15 bg-transparent" />
+                    <span class="text-[10.5px] font-mono font-bold text-white/75">B8</span>
+                    <span id="hex-base-7" class="text-[8.5px] md:text-[9px] font-mono text-white/50 tracking-tighter select-all font-semibold">#0088FF</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-[10px] md:text-[11px] uppercase tracking-widest font-mono text-slate-300 text-center bg-black/60 py-2.5 rounded-md border border-white/10 shadow-sm leading-normal">
+              🌐 Multichannel 16-Way Independent Bus Matrix
+            </div>
+          </div>
+          
+          <!-- Quick Hue Shifter -->
+          <div class="space-y-2 pt-2 border-t border-white/5">
+            <label class="text-[12px] md:text-[13px] font-semibold font-sans text-slate-300 block tracking-wide">⚡ Chaotic Quantum Mutation / 混亂色彩突變：</label>
+            <div class="flex gap-2">
+              <button onclick="mutateColors('digits')" class="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-md text-[11px] md:text-xs uppercase tracking-wider font-sans font-bold text-white/75 hover:bg-white/10 hover:text-white transition-colors cursor-pointer shadow-sm">
+                🔀 Mutate Digits
+              </button>
+              <button onclick="mutateColors('bases')" class="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-md text-[11px] md:text-xs uppercase tracking-wider font-sans font-bold text-white/75 hover:bg-white/10 hover:text-white transition-colors cursor-pointer shadow-sm">
+                🔀 Mutate Bases
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================= TAB 2: GLOW EFFECTS ======================= -->
+        <div id="tab-content-effects" class="hidden space-y-6">
+          <!-- Glow Intensity -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">💡 Emissive Power / 輝光亮度</span>
+              <span id="val-glow-boost" class="text-orange-400 font-bold text-sm md:text-base">1.50</span>
+            </div>
+            <input type="range" id="slider-glow-boost" min="0.3" max="5.5" step="0.05" value="1.5" oninput="updateEffectSlider('glowIntensity', this.value, 'val-glow-boost')" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Glow Blur/Shadow radius -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">🔆 Neon Spread / 霓虹氣化暈散</span>
+              <span id="val-glow-spread" class="text-orange-400 font-bold text-sm md:text-base">25 px</span>
+            </div>
+            <input type="range" id="slider-glow-spread" min="8" max="80" step="1" value="25" oninput="updateEffectSlider('glowSpread', this.value, 'val-glow-spread', ' px')" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Corona Blur -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">🌀 Outer Corona / 外層離子光圈</span>
+              <span id="val-glow-corona" class="text-orange-400 font-bold text-sm md:text-base">35 px</span>
+            </div>
+            <input type="range" id="slider-glow-corona" min="15" max="100" step="1" value="35" oninput="updateEffectSlider('glowOuterBlur', this.value, 'val-glow-corona', ' px')" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Line Thickness -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">📏 Filament Line / 燈芯細管線徑</span>
+              <span id="val-core-thick" class="text-orange-400 font-bold text-sm md:text-base">2.0 mm</span>
+            </div>
+            <input type="range" id="slider-core-thick" min="0.8" max="5.5" step="0.1" value="2.0" oninput="updateEffectSlider('coreThickness', this.value, 'val-core-thick', ' mm')" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Unlit opacity -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">🕸️ Shadow Wire / 未點亮管絲暗色度</span>
+              <span id="val-unlit-op" class="text-orange-400 font-bold text-sm md:text-base">5.0 %</span>
+            </div>
+            <input type="range" id="slider-unlit-op" min="0" max="20" step="0.5" value="5" oninput="updateEffectSlider('unlitOpacity', this.value/100, 'val-unlit-op', ' %', this.value)" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+            <p class="text-[10px] md:text-[11px] text-white/40 uppercase tracking-wider font-mono bg-black/35 p-2 rounded border border-white/5">Simulates the visual presence of nested unlit cathode grid filaments.</p>
+          </div>
+
+          <!-- Organic flickering -->
+          <div class="p-4 bg-black/40 border border-white/10 rounded-md space-y-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="font-sans text-xs md:text-sm font-semibold tracking-wide text-slate-200">🔥 Plasma Discharge Fluctuation / 顫動微秒</span>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input type="checkbox" id="check-ficker" checked onchange="updateFlickerToggle(this.checked)" class="sr-only peer">
+                <div class="w-10 h-5.5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-zinc-400 after:border-zinc-400 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-orange-600"></div>
+              </label>
+            </div>
+            <div class="space-y-2">
+              <div class="flex justify-between font-sans text-xs md:text-sm">
+                <span class="text-white/50">organic amplitude / 能量頻寬</span>
+                <span id="val-flicker-amp" class="text-orange-400 font-bold text-xs md:text-sm">4.0 %</span>
+              </div>
+              <input type="range" id="slider-flicker-amp" min="0" max="15" step="0.5" value="4" oninput="updateEffectSlider('flickerIntensity', this.value/100, 'val-flicker-amp', ' %', this.value)" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================= TAB 3: TABLE REFLECTION ======================= -->
+        <div id="tab-content-desk" class="hidden space-y-6">
+          <!-- Reflection Opacity -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">🪞 Desk Refraction / 桌面反光強度</span>
+              <span id="val-ref-intensity" class="text-orange-400 font-bold text-sm md:text-base">70 %</span>
+            </div>
+            <input type="range" id="slider-ref-intensity" min="0" max="100" step="5" value="70" oninput="updateEffectSlider('reflectionIntensity', this.value/100, 'val-ref-intensity', ' %', this.value)" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Reflection Blur / Distance decay -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">💨 Specular Roughness / 反光衰減模糊</span>
+              <span id="val-ref-rough" class="text-orange-400 font-bold text-sm md:text-base">60 %</span>
+            </div>
+            <input type="range" id="slider-ref-rough" min="10" max="100" step="5" value="60" oninput="updateEffectSlider('reflectionBlur', this.value/100, 'val-ref-rough', ' %', this.value)" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+          </div>
+
+          <!-- Reflection tilt angle -->
+          <div class="space-y-2.5">
+            <div class="flex justify-between font-sans text-xs md:text-sm tracking-wide">
+              <span class="text-slate-300 font-semibold">📐 Projection Angle / 電致折光傾角</span>
+              <span id="val-ref-tilt" class="text-orange-400 font-bold text-sm md:text-base">25 °</span>
+            </div>
+            <input type="range" id="slider-ref-tilt" min="-60" max="60" step="2" value="25" oninput="updateEffectSlider('reflectionAngle', this.value, 'val-ref-tilt', ' °')" class="w-full h-1.5 bg-white/10 hover:bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500" />
+            <p class="text-[10px] md:text-[11px] text-white/40 uppercase tracking-wider font-mono bg-black/35 p-2 rounded border border-white/5">Modulates perspective matrix transformation of desk-level light projections.</p>
+          </div>
+
+          <!-- Desk Material Type -->
+          <div class="space-y-2.5">
+            <label class="text-[12px] md:text-[13px] font-semibold font-sans text-slate-300 block tracking-wide">🌳 Quantum Refractive Substrate / 桌面材質貼皮：</label>
+            <select id="select-desk-style" onchange="updateDeskStyle(this.value)" class="w-full bg-zinc-900 border border-white/15 rounded-md px-3.5 py-3 text-sm font-sans text-white focus:outline-none focus:border-orange-500 cursor-pointer shadow-sm">
+              <option value="rosewood" class="bg-zinc-950">🍂 頂級酸枝紅木 / Luxury Rosewood</option>
+              <option value="obsidian" class="bg-zinc-950">🌌 磨砂黑曜石板 / Matte Obsidian</option>
+              <option value="cobalt" class="bg-zinc-950">💿 深海鈷藍鋼板 / Cobalt Steel</option>
+              <option value="brass" class="bg-zinc-950">👑 拉絲拉紋黃銅 / Brushed Brass</option>
+              <option value="carbon" class="bg-zinc-950">🏁 碳纖卡本矩陣 / Carbon Matrix</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Settings panel footer -->
+      <div class="p-5 bg-zinc-900/98 border-t border-white/10 space-y-4 select-none">
+        <!-- Draggable Custom Profiles Panel -->
+        <div class="flex flex-col gap-2.5 border-b border-white/5 pb-4">
+          <span class="text-[11px] font-mono font-semibold text-white/50 uppercase tracking-widest text-[10px] md:text-[11px]">💾 快速儲存欄位 / SLOTS PROFILE</span>
+          <div class="grid grid-cols-3 gap-2">
+            <!-- Slot 1 -->
+            <div class="flex items-center justify-between bg-black/60 border border-white/20 rounded-md text-[11px] font-mono overflow-hidden shadow-sm">
+              <button id="load-btn-bottom-1" onclick="applyCustomPreset(1)" class="flex-1 py-2 text-center text-slate-300 hover:text-white hover:bg-white/5 transition-all text-[11.5px] font-medium font-sans">自訂效果1</button>
+              <span class="w-px h-4 bg-white/20"></span>
+              <button id="save-btn-bottom-1" onclick="saveCustomPreset(1)" class="px-2.5 py-2 text-orange-400 hover:text-orange-300 hover:bg-white/5 transition-all font-sans text-[11px]">儲存</button>
+            </div>
+            <!-- Slot 2 -->
+            <div class="flex items-center justify-between bg-black/60 border border-white/20 rounded-md text-[11px] font-mono overflow-hidden shadow-sm">
+              <button id="load-btn-bottom-2" onclick="applyCustomPreset(2)" class="flex-1 py-2 text-center text-slate-300 hover:text-white hover:bg-white/5 transition-all text-[11.5px] font-medium font-sans">自訂效果2</button>
+              <span class="w-px h-4 bg-white/20"></span>
+              <button id="save-btn-bottom-2" onclick="saveCustomPreset(2)" class="px-2.5 py-2 text-orange-400 hover:text-orange-300 hover:bg-white/5 transition-all font-sans text-[11px]">儲存</button>
+            </div>
+            <!-- Slot 3 -->
+            <div class="flex items-center justify-between bg-black/60 border border-white/20 rounded-md text-[11px] font-mono overflow-hidden shadow-sm">
+              <button id="load-btn-bottom-3" onclick="applyCustomPreset(3)" class="flex-1 py-2 text-center text-slate-300 hover:text-white hover:bg-white/5 transition-all text-[11.5px] font-medium font-sans">自訂效果3</button>
+              <span class="w-px h-4 bg-white/20"></span>
+              <button id="save-btn-bottom-3" onclick="saveCustomPreset(3)" class="px-2.5 py-2 text-orange-400 hover:text-orange-300 hover:bg-white/5 transition-all font-sans text-[11px]">儲存</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] font-mono text-white/40 uppercase tracking-widest">
+          <span>Chrono Engine v2.2.0</span>
+          <button onclick="resetSettings()" class="px-3.5 py-2 rounded-sm border border-white/15 bg-white/5 hover:bg-white/10 hover:text-white text-white/70 transition-all duration-150 cursor-pointer text-[11px]">
+            Reset to Factory
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAIN INTERACTIVE NIXIE LOGIC LOADER (Inline Vanilla ES6 Engine) -->
+    <script>
+      // Detection for iOS WebKit runtime to apply optimized shader paths/avoid canvas shadowBlur transparency bugs
+      const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+
+      // Default/Original states
+      const DEFAULT_SETTINGS = {
+        digitColors: [
+          '#940031', // D1
+          '#ff0055', // D2
+          '#188604', // D3
+          '#01b762', // D4
+          '#02277e', // D5
+          '#4601ad'  // D6
+        ],
+        separatorColors: [
+          '#00ffea', // C1
+          '#ff00ea'  // C2
+        ],
+        baseColors: [
+          '#ff00aa', // B1
+          '#ff00aa', // B2
+          '#00ffff', // B3
+          '#1a9b03', // B4
+          '#01b27d', // B5
+          '#ff00c8', // B6
+          '#0c5eb6', // B7
+          '#0e01c1'  // B8
+        ],
+        glowIntensity: 3.5,
+        glowSpread: 48,
+        glowOuterBlur: 26,
+        coreThickness: 3.2,
+        unlitOpacity: 0.16,
+        flickerIntensity: 0.04,
+        flickerEnabled: true,
+        reflectionIntensity: 0.85,
+        reflectionAngle: 25,
+        reflectionBlur: 0.55,
+        tableMaterial: 'rosewood'
+      };
+
+      // Preset configurations
+      const THEMES = {
+        classic: {
+          digitColors: ['#ff4400', '#ff4400', '#ff4400', '#ff4400', '#ff4400', '#ff4400'],
+          separatorColors: ['#ffa700', '#ffa700'],
+          baseColors: ['#0077ff', '#0077ff', '#9900ff', '#0077ff', '#0077ff', '#9900ff', '#0077ff', '#0077ff'],
+          glowIntensity: 2.8,
+          glowSpread: 36,
+          glowOuterBlur: 38,
+          coreThickness: 2.5,
+          tableMaterial: 'rosewood'
+        },
+        cyberpunk: {
+          digitColors: ['#ff0055', '#ff0055', '#39ff14', '#39ff14', '#00f0ff', '#00f0ff'],
+          separatorColors: ['#00ffea', '#ff00ea'],
+          baseColors: ['#ff00aa', '#ff00aa', '#00ffff', '#39ff14', '#39ff14', '#ff00c8', '#00f6ff', '#00f6ff'],
+          glowIntensity: 3.2,
+          glowSpread: 45,
+          glowOuterBlur: 50,
+          coreThickness: 2.8,
+          tableMaterial: 'carbon'
+        },
+        atomic: {
+          digitColors: ['#00ff33', '#00ff33', '#00ff33', '#00ff33', '#00ff33', '#00ff33'],
+          separatorColors: ['#adff2f', '#adff2f'],
+          baseColors: ['#224422', '#224422', '#116611', '#224422', '#224422', '#116611', '#224422', '#224422'],
+          glowIntensity: 2.5,
+          glowSpread: 32,
+          glowOuterBlur: 35,
+          coreThickness: 2.3,
+          tableMaterial: 'obsidian'
+        },
+        prism: {
+          digitColors: ['#ff0000', '#ff7700', '#ffff00', '#00ff00', '#0284c7', '#9333ea'],
+          separatorColors: ['#00ffc4', '#ff007c'],
+          baseColors: ['#ff0000', '#ff7700', '#ffff00', '#00ff00', '#0284c7', '#9333ea', '#ff007c', '#00ffc4'],
+          glowIntensity: 3.0,
+          glowSpread: 40,
+          glowOuterBlur: 45,
+          coreThickness: 2.5,
+          tableMaterial: 'brass'
+        },
+        frozen: {
+          digitColors: ['#e0f2fe', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7'],
+          separatorColors: ['#e0f7fa', '#80deea'],
+          baseColors: ['#1e3a8a', '#1e3a8a', '#0e7490', '#1e3a8a', '#1e3a8a', '#0e7490', '#1e3a8a', '#1e3a8a'],
+          glowIntensity: 2.4,
+          glowSpread: 32,
+          glowOuterBlur: 36,
+          coreThickness: 2.2,
+          tableMaterial: 'obsidian'
+        }
+      };
+
+      // Layout structure mapping for tubes
+      const TUBE_POSITIONS = [
+        { x: -4.12, isSeparator: false, digitIndex: 0, label: "H1", baseIndex: 0 },
+        { x: -2.64, isSeparator: false, digitIndex: 1, label: "H2", baseIndex: 1 },
+        { x: -1.69, isSeparator: true, separatorIndex: 0, label: "C1", baseIndex: 2 },
+        { x: -0.74, isSeparator: false, digitIndex: 2, label: "M1", baseIndex: 3 },
+        { x:  0.74, isSeparator: false, digitIndex: 3, label: "M2", baseIndex: 4 },
+        { x:  1.69, isSeparator: true, separatorIndex: 1, label: "C2", baseIndex: 5 },
+        { x:  2.64, isSeparator: false, digitIndex: 4, label: "S1", baseIndex: 6 },
+        { x:  4.12, isSeparator: false, digitIndex: 5, label: "S2", baseIndex: 7 }
+      ];
+
+      class NixieClockEngine {
+        constructor() {
+          this.settings = { ...DEFAULT_SETTINGS };
+          
+          // Textures and Canvases
+          this.digitTextures = {}; // active textures, indexed by digit 0-9 for each tube 0-5
+          this.digitCanvases = {};
+          this.digitContexts = {};
+          
+          this.inactiveDigitTextures = []; // cached unlit digit textures 0-9
+          
+          this.colonTextures = []; // active colon textures [0, 1]
+          this.colonCanvases = [];
+          this.colonContexts = [];
+
+          // Trackers
+          this.digitMeshes = []; // 6 tubes, each containing 10 digit filament meshes
+          this.mirroredDigitMeshes = []; // 6 tubes mirrored
+          
+          this.colonMeshes = []; // 2 colons, each holding 2 dots
+          this.mirroredColonMeshes = [];
+          
+          this.pointLights = []; // bottom LED point lights
+          this.tubeGlowLights = []; // internal dynamic tube glow lights matching active digits
+          this.neonGlowRings = []; // bottom LED neon torus meshes
+          this.mirroredNeonGlowRings = [];
+
+          // Smooth transitions
+          this.currentTimeOpacities = Array(6).fill(null).map(() => Array(10).fill(0));
+          this.targetTimeDigits = [0, 0, 0, 0, 0, 0];
+          
+          // Animation trackers
+          this.requestID = null;
+          this.lastTime = 0;
+
+          this.init();
+        }
+
+        init() {
+          this.container = document.getElementById('webgl-container');
+          if (!this.container) return;
+
+          // 1. Initial WebGL Scene
+          this.scene = new THREE.Scene();
+          this.scene.fog = new THREE.FogExp2(0x040406, 0.012);
+
+          // Camera Configuration
+          const aspect = this.container.clientWidth / this.container.clientHeight;
+          this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
+          this.camera.position.set(0, 2.5, 8.5);
+
+          // Renderer Configuration
+          this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
+          this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          this.renderer.toneMappingExposure = IS_IOS ? 1.05 : 1.22;
+          this.renderer.shadowMap.enabled = true;
+          this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+          this.container.appendChild(this.renderer.domElement);
+
+          // Interactive Controls
+          this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+          this.controls.enableDamping = true;
+          this.controls.dampingFactor = 0.06;
+          this.controls.minDistance = 3.0;
+          this.controls.maxDistance = 25.0;
+          this.controls.maxPolarAngle = Math.PI / 2 + 0.05;
+
+          // Groups
+          this.chassisGroup = new THREE.Group();
+          this.scene.add(this.chassisGroup);
+
+          this.reflectionGroup = new THREE.Group();
+          this.reflectionGroup.position.y = -1.845;
+          this.reflectionGroup.scale.set(1, -0.9, 1);
+          this.scene.add(this.reflectionGroup);
+
+          // 2. Load Lighting & Environments
+          this.setupLighting();
+
+          // 3. Setup Textures
+          this.prepareProceduralTextures();
+
+          // 4. Construct Chassis Casing & Table
+          this.buildTableAndRoom();
+          this.buildChassis();
+
+          // 5. Construct Tube Units
+          this.buildTubes();
+
+          // 6. Bind Resize & Launch Animation Trigger
+          window.addEventListener('resize', this.onWindowResize.bind(this));
+          this.animate(0);
+          
+          // 7. Synchronize UI Inputs
+          this.syncUIToState();
+
+          // 8. Auto-load Custom Preset 1 (or initialize if empty)
+          this.initAndLoadFirstPreset();
+        }
+
+        setupLighting() {
+          const ambientLight = new THREE.AmbientLight(0x0a1122, 0.4);
+          this.scene.add(ambientLight);
+
+          const dirLight = new THREE.DirectionalLight(0xffeaad, 0.85);
+          dirLight.position.set(5, 10, 7);
+          dirLight.castShadow = true;
+          dirLight.shadow.mapSize.width = 1024;
+          dirLight.shadow.mapSize.height = 1024;
+          dirLight.shadow.bias = -0.001;
+          this.scene.add(dirLight);
+
+          const fillLight = new THREE.DirectionalLight(0x0088ff, 0.3);
+          fillLight.position.set(-6, 3, -4);
+          this.scene.add(fillLight);
+        }
+
+        prepareProceduralTextures() {
+          for (let digit = 0; digit < 10; digit++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            this.drawUnlitCathode(ctx, canvas.width, canvas.height, digit.toString());
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            this.inactiveDigitTextures.push(texture);
+          }
+
+          for (let tubeIdx = 0; tubeIdx < 6; tubeIdx++) {
+            const activeCanvases = [];
+            const activeCtxs = [];
+            const activeTextures = [];
+
+            for (let digit = 0; digit < 10; digit++) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 256;
+              canvas.height = 512;
+              const ctx = canvas.getContext('2d');
+
+              activeCanvases.push(canvas);
+              activeCtxs.push(ctx);
+
+              const texture = new THREE.CanvasTexture(canvas);
+              texture.minFilter = THREE.LinearFilter;
+              activeTextures.push(texture);
+            }
+
+            this.digitTextures[tubeIdx] = activeTextures;
+            this.digitCanvases[tubeIdx] = activeCanvases;
+            this.digitContexts[tubeIdx] = activeCtxs;
+          }
+
+          for (let colIdx = 0; colIdx < 2; colIdx++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            this.colonCanvases.push(canvas);
+            this.colonContexts.push(ctx);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            this.colonTextures.push(texture);
+          }
+
+          this.redrawActiveDigitTextures();
+          this.redrawColonTextures();
+        }
+
+        drawUnlitCathode(ctx, w, h, digit) {
+          ctx.clearRect(0, 0, w, h);
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+          ctx.font = "bold 288px 'Space Grotesk', sans-serif";
+
+          ctx.strokeStyle = '#2d3748';
+          ctx.lineWidth = 1.5 * 1.92;
+          ctx.strokeText(digit, w / 2, h / 2 + 19);
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.strokeStyle = 'rgba(74, 85, 104, 0.15)';
+          ctx.lineWidth = 1.0 * 1.92;
+          for (let y = 0; y < h; y += 4 * 1.92) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        redrawActiveDigitTextures() {
+          for (let tubeIdx = 0; tubeIdx < 6; tubeIdx++) {
+            const activeColor = this.settings.digitColors[tubeIdx];
+            const contexts = this.digitContexts[tubeIdx];
+            const textures = this.digitTextures[tubeIdx];
+
+            for (let digit = 0; digit < 10; digit++) {
+              const ctx = contexts[digit];
+              const canvas = this.digitCanvases[tubeIdx][digit];
+              const w = canvas.width;
+              const h = canvas.height;
+
+              ctx.clearRect(0, 0, w, h);
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'center';
+              ctx.font = "bold 295px 'Space Grotesk', sans-serif";
+
+              ctx.save();
+              // Enable screen composite blending for rich, additive neon overlay glow
+              ctx.globalCompositeOperation = 'screen';
+              
+              if (IS_IOS) {
+                // HIGH END CONCENTRIC GLOW SIMULATION WITHOUT CHROMATIC SHADOWBLUR BUG ON IOS
+                // We draw multiple overlapping concentric strokes to recreate the smooth volumetric neon glow safely
+                ctx.strokeStyle = activeColor;
+                
+                // 1. Broad outer ambient gas aura (concentric steps)
+                const stepsAmbient = 8;
+                const maxSpread = this.settings.glowSpread * 2.65 * 1.92;
+                const minSpread = (this.settings.glowSpread * 0.65 + 6.0) * 1.92;
+                const ambientIntensity = 0.16 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsAmbient; i++) {
+                  const ratio = i / (stepsAmbient - 1);
+                  ctx.lineWidth = minSpread + ratio * (maxSpread - minSpread);
+                  ctx.globalAlpha = ambientIntensity * Math.pow(1 - ratio, 1.8) * 0.40;
+                  ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+                }
+
+                // 2. Outer corona neon gas spread
+                const stepsCorona = 6;
+                const coronaMax = this.settings.glowOuterBlur * 2.0 * 1.92;
+                const coronaMin = (this.settings.glowOuterBlur * 0.35 + 3.0) * 1.92;
+                const coronaIntensity = 0.42 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsCorona; i++) {
+                  const ratio = i / (stepsCorona - 1);
+                  ctx.lineWidth = coronaMin + ratio * (coronaMax - coronaMin);
+                  ctx.globalAlpha = coronaIntensity * Math.pow(1 - ratio, 1.5) * 0.40;
+                  ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+                }
+
+                // 3. Inner filament neon gas spread
+                const stepsFilament = 5;
+                const filamentMax = this.settings.glowSpread * 1.4 * 1.92;
+                const filamentMin = (this.settings.glowSpread * 0.25 + 1.5) * 1.92;
+                const filamentIntensity = 0.70 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsFilament; i++) {
+                  const ratio = i / (stepsFilament - 1);
+                  ctx.lineWidth = filamentMin + ratio * (filamentMax - filamentMin);
+                  ctx.globalAlpha = filamentIntensity * Math.pow(1 - ratio, 1.3) * 0.45;
+                  ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+                }
+
+                // 4. Hot inner metal core wire (fully solid white core)
+                ctx.strokeStyle = '#fffdf0';
+                ctx.lineWidth = this.settings.coreThickness * 1.8;
+                ctx.globalAlpha = 1.0;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+
+                // Add a very subtle core neon stroke around the hot metal wire for color bleeding
+                ctx.strokeStyle = activeColor;
+                ctx.lineWidth = this.settings.coreThickness * 2.8;
+                ctx.globalAlpha = 0.85;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+
+              } else {
+                // STANDARD DEVICE SHADOWBLUR PIPELINE (completely safe for PC Chrome/Firefox)
+                // PASS 1: Broad ambient ionization gas aura (soft and extremely wide)
+                ctx.strokeStyle = activeColor;
+                ctx.lineWidth = (this.settings.glowSpread * 0.65 + 6.0) * 1.92;
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = this.settings.glowSpread * 2.8 * 1.92;
+                ctx.globalAlpha = 0.18 * this.settings.glowIntensity;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+
+                // PASS 2: Outer neon corona
+                ctx.lineWidth = (this.settings.glowOuterBlur * 0.35 + 3.0) * 1.92;
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = this.settings.glowOuterBlur * 1.92;
+                ctx.globalAlpha = 0.45 * this.settings.glowIntensity;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+
+                // PASS 3: Filament tube neon gas spread
+                ctx.lineWidth = (this.settings.glowSpread * 0.25 + 1.5) * 1.92;
+                ctx.shadowBlur = this.settings.glowSpread * 1.92;
+                ctx.globalAlpha = 0.75 * this.settings.glowIntensity;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+
+                // PASS 4: Hot inner metal core wire (warm-tinted white for realistic thermal look)
+                ctx.strokeStyle = '#fffdf0';
+                ctx.lineWidth = this.settings.coreThickness * 1.92;
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = 10 * 1.92;
+                ctx.globalAlpha = 1.0;
+                ctx.strokeText(digit.toString(), w / 2, h / 2 + 19);
+              }
+
+              ctx.restore();
+              textures[digit].needsUpdate = true;
+            }
+          }
+        }
+
+        redrawColonTextures() {
+          for (let colIdx = 0; colIdx < 2; colIdx++) {
+            const activeColor = this.settings.separatorColors[colIdx];
+            const ctx = this.colonContexts[colIdx];
+            const canvas = this.colonCanvases[colIdx];
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const drawDot = (y) => {
+              ctx.save();
+              ctx.globalCompositeOperation = 'screen';
+
+              if (IS_IOS) {
+                // HIGH END CONCENTRIC GLOW SIMULATION WITHOUT CHROMATIC SHADOWBLUR BUG ON IOS
+                // 1. Broad outer ambient gas aura (concentric steps)
+                ctx.fillStyle = activeColor;
+                const stepsAmbient = 8;
+                const maxSpread = this.settings.glowSpread * 2.3;
+                const ambientIntensity = 0.16 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsAmbient; i++) {
+                  const ratio = i / (stepsAmbient - 1);
+                  const radius = 14 + ratio * (maxSpread - 14);
+                  ctx.globalAlpha = ambientIntensity * Math.pow(1 - ratio, 1.8) * 0.40;
+                  ctx.beginPath();
+                  ctx.arc(w / 2, y, radius, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+
+                // 2. Outer corona neon gas spread
+                const stepsCorona = 6;
+                const coronaMax = this.settings.glowOuterBlur * 1.8;
+                const coronaIntensity = 0.42 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsCorona; i++) {
+                  const ratio = i / (stepsCorona - 1);
+                  const radius = 9 + ratio * (coronaMax - 9);
+                  ctx.globalAlpha = coronaIntensity * Math.pow(1 - ratio, 1.5) * 0.40;
+                  ctx.beginPath();
+                  ctx.arc(w / 2, y, radius, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+
+                // 3. Core filament neon spread
+                const stepsFilament = 5;
+                const filamentMax = this.settings.glowSpread * 1.3;
+                const filamentIntensity = 0.70 * this.settings.glowIntensity;
+                for (let i = 0; i < stepsFilament; i++) {
+                  const ratio = i / (stepsFilament - 1);
+                  const radius = 6 + ratio * (filamentMax - 6);
+                  ctx.globalAlpha = filamentIntensity * Math.pow(1 - ratio, 1.3) * 0.45;
+                  ctx.beginPath();
+                  ctx.arc(w / 2, y, radius, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+
+                // 4. Hot inner metal core wire
+                ctx.fillStyle = '#fffdf0';
+                ctx.globalAlpha = 1.0;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, this.settings.coreThickness * 1.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add color bleed around core
+                ctx.fillStyle = activeColor;
+                ctx.globalAlpha = 0.85;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, this.settings.coreThickness * 1.8, 0, Math.PI * 2);
+                ctx.fill();
+
+              } else {
+                // STANDARD DEVICE SHADOWBLUR PIPELINE (completely safe for PC Chrome/Firefox)
+                // PASS 1: Broad ambient ionization gas aura
+                ctx.fillStyle = activeColor;
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = this.settings.glowSpread * 2.5;
+                ctx.globalAlpha = 0.18 * this.settings.glowIntensity;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                // PASS 2: Outer corona
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = this.settings.glowOuterBlur * 0.8;
+                ctx.globalAlpha = 0.45 * this.settings.glowIntensity;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, 9, 0, Math.PI * 2);
+                ctx.fill();
+
+                // PASS 3: Core filament neon spread
+                ctx.shadowBlur = this.settings.glowSpread * 0.6;
+                ctx.globalAlpha = 0.75 * this.settings.glowIntensity;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // PASS 4: Hot filament core inside dot separator
+                ctx.fillStyle = '#fffdf0';
+                ctx.shadowColor = activeColor;
+                ctx.shadowBlur = 4;
+                ctx.globalAlpha = 1.0;
+                ctx.beginPath();
+                ctx.arc(w / 2, y, this.settings.coreThickness * 1.1, 0, Math.PI * 2);
+                ctx.fill();
+              }
+
+              ctx.restore();
+            };
+
+            drawDot(h * 0.3);
+            drawDot(h * 0.7);
+
+            this.colonTextures[colIdx].needsUpdate = true;
+          }
+        }
+
+        generateTableTexture(style) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1024;
+          canvas.height = 1024;
+          const ctx = canvas.getContext('2d');
+
+          if (style === 'rosewood') {
+            const g0 = ctx.createLinearGradient(0, 0, 1024, 0);
+            g0.addColorStop(0, '#210e08');
+            g0.addColorStop(0.5, '#2e140d');
+            g0.addColorStop(1, '#210e08');
+            ctx.fillStyle = g0;
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            ctx.strokeStyle = 'rgba(12, 5, 2, 0.45)';
+            ctx.lineWidth = 1.5;
+            for (let i = -100; i < 1124; i += 8) {
+              ctx.beginPath();
+              let x = 0;
+              ctx.moveTo(x, i);
+              while (x < 1024) {
+                x += 20;
+                const wave = Math.sin(x * 0.005) * 22 + Math.cos(x * 0.015) * 8;
+                ctx.lineTo(x, i + wave);
+              }
+              ctx.stroke();
+            }
+
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            for (let j = 0; j < 1024; j += 6) {
+              if (Math.random() > 0.4) {
+                ctx.fillRect(0, j, 1024, 2);
+              }
+            }
+          } 
+          else if (style === 'obsidian') {
+            ctx.fillStyle = '#050508';
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.shadowColor = '#ffffff';
+            for (let v = 0; v < 8; v++) {
+              ctx.save();
+              ctx.shadowBlur = Math.random() * 15 + 5;
+              ctx.lineWidth = Math.random() * 2 + 0.5;
+              ctx.globalAlpha = Math.random() * 0.3 + 0.1;
+              ctx.beginPath();
+              let sx = Math.random() * 1024;
+              let sy = 0;
+              ctx.moveTo(sx, sy);
+              while (sy < 1024) {
+                sy += 15;
+                sx += (Math.random() - 0.5) * 35;
+                ctx.lineTo(sx, sy);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            for (let p = 0; p < 2500; p++) {
+              ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 1.5, 1.5);
+            }
+          } 
+          else if (style === 'cobalt') {
+            const gSteel = ctx.createLinearGradient(0, 0, 0, 1024);
+            gSteel.addColorStop(0, '#101622');
+            gSteel.addColorStop(0.5, '#1e293b');
+            gSteel.addColorStop(1, '#101622');
+            ctx.fillStyle = gSteel;
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1.0;
+            for (let s = 0; s < 1024; s += 2) {
+              if (Math.random() > 0.35) {
+                ctx.beginPath();
+                ctx.moveTo(0, s);
+                ctx.lineTo(1024, s);
+                ctx.stroke();
+              }
+            }
+          } 
+          else if (style === 'brass') {
+            const gBrass = ctx.createLinearGradient(0, 0, 0, 1024);
+            gBrass.addColorStop(0, '#2d1d05');
+            gBrass.addColorStop(0.5, '#5c451a');
+            gBrass.addColorStop(1, '#2d1d05');
+            ctx.fillStyle = gBrass;
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            ctx.strokeStyle = 'rgba(255,250,215,0.08)';
+            ctx.lineWidth = 1.0;
+            for (let b = 0; b < 1024; b += 2) {
+              if (Math.random() > 0.4) {
+                ctx.beginPath();
+                ctx.moveTo(0, b);
+                ctx.lineTo(1024, b + (Math.random() - 0.5) * 5);
+                ctx.stroke();
+              }
+            }
+          } 
+          else if (style === 'carbon') {
+            ctx.fillStyle = '#08080a';
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            const cellSize = 16;
+            for (let y = 0; y < 1024; y += cellSize) {
+              for (let x = 0; x < 1024; x += cellSize) {
+                const cellGrad = ctx.createLinearGradient(x, y, x + cellSize, y + cellSize);
+                if ((Math.floor(x / cellSize) + Math.floor(y / cellSize)) % 2 === 0) {
+                  cellGrad.addColorStop(0, '#1c1c22');
+                  cellGrad.addColorStop(1, '#0e0e11');
+                } else {
+                  cellGrad.addColorStop(0, '#121215');
+                  cellGrad.addColorStop(1, '#030304');
+                }
+                ctx.fillStyle = cellGrad;
+                ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+              }
+            }
+          }
+
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1.5, 1.5);
+          return texture;
+        }
+
+        buildTableAndRoom() {
+          const tableGeo = new THREE.PlaneGeometry(35, 18);
+          const tableTex = this.generateTableTexture(this.settings.tableMaterial);
+
+          this.tableMaterialObject = new THREE.MeshStandardMaterial({
+            map: tableTex,
+            roughness: 0.15,
+            metalness: 0.3,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide
+          });
+
+          this.tableMesh = new THREE.Mesh(tableGeo, this.tableMaterialObject);
+          this.tableMesh.rotation.x = -Math.PI / 2;
+          this.tableMesh.position.y = -0.925;
+          this.tableMesh.receiveShadow = true;
+          this.tableMesh.renderOrder = 10;
+          this.scene.add(this.tableMesh);
+
+          const trapGeo = new THREE.PlaneGeometry(45, 25);
+          const trapMat = new THREE.MeshBasicMaterial({ color: 0x020204 });
+          const trapMesh = new THREE.Mesh(trapGeo, trapMat);
+          trapMesh.rotation.x = -Math.PI / 2;
+          trapMesh.position.y = -0.96;
+          trapMesh.renderOrder = 1;
+          this.scene.add(trapMesh);
+        }
+
+        buildChassis() {
+          const chassisGeo = new THREE.BoxGeometry(10.5, 0.16, 2.3);
+          const woodTex = this.generateTableTexture('rosewood');
+          const woodMat = new THREE.MeshStandardMaterial({
+            map: woodTex,
+            roughness: 0.35,
+            metalness: 0.1,
+            bumpScale: 0.05
+          });
+
+          const chassisBlock = new THREE.Mesh(chassisGeo, woodMat);
+          chassisBlock.position.y = -0.84;
+          chassisBlock.castShadow = true;
+          chassisBlock.receiveShadow = true;
+          this.chassisGroup.add(chassisBlock);
+
+          const rivetGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12);
+          const brassMat = new THREE.MeshStandardMaterial({
+            color: 0xcca64e,
+            roughness: 0.25,
+            metalness: 0.85
+          });
+
+          const rivetPositions = [
+            { x: -5.1, z: -1.0 }, { x: 5.1, z: -1.0 },
+            { x: -5.1, z:  1.0 }, { x: 5.1, z:  1.0 }
+          ];
+
+          rivetPositions.forEach(p => {
+            const rivet = new THREE.Mesh(rivetGeo, brassMat);
+            rivet.position.set(p.x, -0.75, p.z);
+            rivet.castShadow = true;
+            this.chassisGroup.add(rivet);
+          });
+
+          const mirChassisBlock = new THREE.Mesh(chassisGeo, woodMat);
+          mirChassisBlock.position.y = -0.84;
+          this.reflectionGroup.add(mirChassisBlock);
+
+          rivetPositions.forEach(p => {
+            const mirRivet = new THREE.Mesh(rivetGeo, brassMat);
+            mirRivet.position.set(p.x, -0.75, p.z);
+            this.reflectionGroup.add(mirRivet);
+          });
+        }
+
+        buildTubes() {
+          const outerGlassMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            roughness: 0.05,
+            metalness: 0.1,
+            transparent: true,
+            opacity: 0.22,
+            ior: 1.5,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          });
+
+          const wireBackboneMat = new THREE.MeshStandardMaterial({
+            color: 0x1a202c,
+            roughness: 0.8,
+            metalness: 0.9
+          });
+
+          const baseCapMat = new THREE.MeshStandardMaterial({
+            color: 0x33333b,
+            roughness: 0.15,
+            metalness: 0.82
+          });
+
+          TUBE_POSITIONS.forEach(tube => {
+            const tubeGroup = new THREE.Group();
+            tubeGroup.position.set(tube.x, 0, 0);
+
+            const mirTubeGroup = new THREE.Group();
+            mirTubeGroup.position.set(tube.x, 0, 0);
+
+            const baseCapRadiusTop = tube.isSeparator ? 0.19 : (0.5 * 1.5) * 0.8;
+            const baseCapRadiusBottom = tube.isSeparator ? 0.20 : (0.52 * 1.5) * 0.8;
+            const baseCapGeo = new THREE.CylinderGeometry(baseCapRadiusTop, baseCapRadiusBottom, 0.08, 24);
+
+            const baseCap = new THREE.Mesh(baseCapGeo, baseCapMat);
+            baseCap.position.y = -0.72;
+            baseCap.castShadow = true;
+            tubeGroup.add(baseCap);
+
+            const mirBaseCap = new THREE.Mesh(baseCapGeo, baseCapMat);
+            mirBaseCap.position.y = -0.72;
+            mirTubeGroup.add(mirBaseCap);
+
+            const radius = tube.isSeparator ? 0.16 : (0.44 * 1.5) * 0.8;
+            const height = tube.isSeparator ? 0.6 * 1.8 : (1.7 * 1.5) * 0.6;
+            const glassCylGeo = new THREE.CylinderGeometry(radius, radius, height, 16, 1, true);
+            const glassCyl = new THREE.Mesh(glassCylGeo, outerGlassMat);
+            glassCyl.position.y = -0.72 + height / 2;
+            glassCyl.renderOrder = 25;
+            tubeGroup.add(glassCyl);
+
+            const mirGlassCyl = new THREE.Mesh(glassCylGeo, outerGlassMat);
+            mirGlassCyl.position.y = -0.72 + height / 2;
+            mirGlassCyl.renderOrder = 5;
+            mirTubeGroup.add(mirGlassCyl);
+
+            const domeGeo = new THREE.SphereGeometry(radius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+            const glassDome = new THREE.Mesh(domeGeo, outerGlassMat);
+            glassDome.position.y = -0.72 + height;
+            glassDome.renderOrder = 25;
+            tubeGroup.add(glassDome);
+
+            const mirGlassDome = new THREE.Mesh(domeGeo, outerGlassMat);
+            mirGlassDome.position.y = -0.72 + height;
+            mirGlassDome.renderOrder = 5;
+            mirTubeGroup.add(mirGlassDome);
+
+            const ringColor = this.settings.baseColors[tube.baseIndex];
+            const ringMat = new THREE.MeshBasicMaterial({
+              color: ringColor,
+              transparent: true,
+              opacity: 0.8,
+              blending: THREE.AdditiveBlending
+            });
+            const torusRadius = tube.isSeparator ? 0.18 : (0.48 * 1.5) * 0.8;
+            const torusTubeRadius = tube.isSeparator ? 0.012 : (0.024 * 1.5) * 0.8;
+            const ringGeo = new THREE.TorusGeometry(torusRadius, torusTubeRadius * 2.0, 8, 24);
+
+            const glowRing = new THREE.Mesh(ringGeo, ringMat);
+            glowRing.rotation.x = Math.PI / 2;
+            glowRing.position.y = -0.75;
+            glowRing.renderOrder = 15;
+
+            const ringMat2 = new THREE.MeshBasicMaterial({
+              color: ringColor,
+              transparent: true,
+              opacity: 0.45,
+              blending: THREE.AdditiveBlending
+            });
+            const midGlowRadius = torusRadius * 1.6;
+            const midGlowTubeRadius = torusTubeRadius * 4.0;
+            const midGlowRing = new THREE.Mesh(new THREE.TorusGeometry(midGlowRadius, midGlowTubeRadius, 8, 24), ringMat2);
+            glowRing.add(midGlowRing);
+
+            const ringMat3 = new THREE.MeshBasicMaterial({
+              color: ringColor,
+              transparent: true,
+              opacity: 0.18,
+              blending: THREE.AdditiveBlending
+            });
+            const outerGlowRadius = torusRadius * 2.4;
+            const outerGlowTubeRadius = torusTubeRadius * 6.5;
+            const outerGlowRing = new THREE.Mesh(new THREE.TorusGeometry(outerGlowRadius, outerGlowTubeRadius, 8, 24), ringMat3);
+            glowRing.add(outerGlowRing);
+
+            tubeGroup.add(glowRing);
+            this.neonGlowRings.push(glowRing);
+
+            const mirGlowRing = new THREE.Mesh(ringGeo, ringMat);
+            mirGlowRing.rotation.x = Math.PI / 2;
+            mirGlowRing.position.y = -0.75;
+            mirGlowRing.renderOrder = 5;
+
+            const mirMidGlowRing = new THREE.Mesh(new THREE.TorusGeometry(midGlowRadius, midGlowTubeRadius, 8, 24), ringMat2);
+            mirGlowRing.add(mirMidGlowRing);
+
+            const mirOuterGlowRing = new THREE.Mesh(new THREE.TorusGeometry(outerGlowRadius, outerGlowTubeRadius, 8, 24), ringMat3);
+            mirGlowRing.add(mirOuterGlowRing);
+
+            mirTubeGroup.add(mirGlowRing);
+            this.mirroredNeonGlowRings.push(mirGlowRing);
+
+            const pLight = new THREE.PointLight(ringColor, IS_IOS ? 0.70 : 1.2, 3.2);
+            pLight.position.set(0, -0.78, 0);
+            tubeGroup.add(pLight);
+            this.pointLights.push(pLight);
+
+            // Create a custom high-end dynamic tube filament glow light situated inside the glass dome
+            const tgColorHex = tube.isSeparator 
+              ? this.settings.separatorColors[tube.separatorIndex ?? 0] 
+              : this.settings.digitColors[tube.digitIndex ?? 0];
+            const tgLight = new THREE.PointLight(tgColorHex, 0.0, 5.0);
+            tgLight.position.set(0, 0.26, 0); // Situated in the heart of the numeric filaments
+            tubeGroup.add(tgLight);
+            this.tubeGlowLights.push(tgLight);
+
+            if (!tube.isSeparator) {
+              const dIndex = tube.digitIndex ?? 0;
+              const tubeDigitMeshes = [];
+              const mirTubeDigitMeshes = [];
+
+              const spineGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.4 * 1.5 * 0.8, 6);
+              const spineL = new THREE.Mesh(spineGeo, wireBackboneMat);
+              spineL.position.set(-0.25 * 1.5, 0.18 * 1.5 * 0.8, -0.15 * 1.5);
+              tubeGroup.add(spineL);
+
+              const spineR = spineL.clone();
+              spineR.position.x = 0.25 * 1.5;
+              tubeGroup.add(spineR);
+
+              const mirSpineL = new THREE.Mesh(spineGeo, wireBackboneMat);
+              mirSpineL.position.set(-0.25 * 1.5, 0.18 * 1.5 * 0.8, -0.15 * 1.5);
+              mirTubeGroup.add(mirSpineL);
+
+              const mirSpineR = mirSpineL.clone();
+              mirSpineR.position.x = 0.25 * 1.5;
+              mirTubeGroup.add(mirSpineR);
+
+              const digitQuadGeo = new THREE.PlaneGeometry(0.52 * 1.5 * 1.2, 1.04 * 1.5 * 1.2);
+
+              for (let i = 0; i < 10; i++) {
+                const digitMat = new THREE.MeshBasicMaterial({
+                  map: this.inactiveDigitTextures[i],
+                  transparent: true,
+                  opacity: this.settings.unlitOpacity,
+                  depthWrite: false,
+                  side: THREE.DoubleSide,
+                  blending: THREE.AdditiveBlending
+                });
+
+                const qMesh = new THREE.Mesh(digitQuadGeo, digitMat);
+                const rotationOffset = (Math.random() - 0.5) * 0.05;
+                qMesh.rotation.y = rotationOffset;
+                qMesh.position.set(0, 0.25 * 1.5 * 0.7, -0.15 * 1.5 + (i * 0.035 * 1.5));
+                qMesh.renderOrder = 35;
+                tubeGroup.add(qMesh);
+                tubeDigitMeshes.push(qMesh);
+
+                const mirDigitMat = new THREE.MeshBasicMaterial({
+                  map: this.inactiveDigitTextures[i],
+                  transparent: true,
+                  opacity: this.settings.unlitOpacity * 0.5,
+                  depthWrite: false,
+                  side: THREE.DoubleSide,
+                  blending: THREE.AdditiveBlending
+                });
+                const mirQMesh = new THREE.Mesh(digitQuadGeo, mirDigitMat);
+                mirQMesh.rotation.y = rotationOffset;
+                mirQMesh.position.set(0, 0.25 * 1.5 * 0.7, -0.15 * 1.5 + (i * 0.035 * 1.5));
+                mirQMesh.renderOrder = 5;
+                mirTubeGroup.add(mirQMesh);
+                mirTubeDigitMeshes.push(mirQMesh);
+              }
+
+              this.digitMeshes.push(tubeDigitMeshes);
+              this.mirroredDigitMeshes.push(mirTubeDigitMeshes);
+            } 
+            else {
+              const colIdx = tube.separatorIndex ?? 0;
+              const colDigitMeshes = [];
+              const mirColDigitMeshes = [];
+
+              const colonQuadGeo = new THREE.PlaneGeometry(0.24, 0.72);
+              const colMat = new THREE.MeshBasicMaterial({
+                map: this.colonTextures[colIdx],
+                transparent: true,
+                opacity: 1.0,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+              });
+
+              const qMesh = new THREE.Mesh(colonQuadGeo, colMat);
+              qMesh.position.set(0, -0.01, 0);
+              qMesh.renderOrder = 35;
+              tubeGroup.add(qMesh);
+              colDigitMeshes.push(qMesh);
+
+              const mirColMat = new THREE.MeshBasicMaterial({
+                map: this.colonTextures[colIdx],
+                transparent: true,
+                opacity: 0.65,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+              });
+              const mirQMesh = new THREE.Mesh(colonQuadGeo, mirColMat);
+              mirQMesh.position.set(0, -0.01, 0);
+              mirQMesh.renderOrder = 5;
+              mirTubeGroup.add(mirQMesh);
+              mirColDigitMeshes.push(mirQMesh);
+
+              this.colonMeshes.push(colDigitMeshes);
+              this.mirroredColonMeshes.push(mirColDigitMeshes);
+            }
+
+            this.chassisGroup.add(tubeGroup);
+            this.reflectionGroup.add(mirTubeGroup);
+          });
+        }
+
+        animate(now) {
+          this.requestID = requestAnimationFrame(this.animate.bind(this));
+
+          if (!this.lastTime) this.lastTime = now;
+          const delta = (now - this.lastTime) / 1000;
+          this.lastTime = now;
+
+          const date = new Date();
+          const h = date.getHours();
+          const m = date.getMinutes();
+          const s = date.getSeconds();
+
+          this.targetTimeDigits[0] = Math.floor(h / 10);
+          this.targetTimeDigits[1] = h % 10;
+          this.targetTimeDigits[2] = Math.floor(m / 10);
+          this.targetTimeDigits[3] = m % 10;
+          this.targetTimeDigits[4] = Math.floor(s / 10);
+          this.targetTimeDigits[5] = s % 10;
+
+          let flickerFactor = 1.0;
+          if (this.settings.flickerEnabled) {
+            flickerFactor = 1.0 + (Math.sin(now * 0.08) * 0.15 + (Math.random() - 0.5) * 0.5) * this.settings.flickerIntensity;
+          }
+
+          for (let tubeIdx = 0; tubeIdx < 6; tubeIdx++) {
+            const targetDigit = this.targetTimeDigits[tubeIdx];
+            const opacities = this.currentTimeOpacities[tubeIdx];
+            const meshes = this.digitMeshes[tubeIdx];
+            const mirMeshes = this.mirroredDigitMeshes[tubeIdx];
+            const activeTextures = this.digitTextures[tubeIdx];
+
+            for (let digit = 0; digit < 10; digit++) {
+              const targetOp = (digit === targetDigit) ? 1.0 : 0.0;
+              const lerpSpeed = 7.5;
+              opacities[digit] += (targetOp - opacities[digit]) * lerpSpeed * Math.min(delta, 0.15);
+
+              const currentOp = opacities[digit];
+              const mesh = meshes[digit];
+              const mirMesh = mirMeshes[digit];
+
+              if (mesh) {
+                const mat = mesh.material;
+                const mirMat = mirMesh.material;
+
+                if (currentOp > 0.015) {
+                  mat.map = activeTextures[digit];
+                  mat.opacity = THREE.MathUtils.lerp(this.settings.unlitOpacity, flickerFactor, currentOp);
+                  
+                  mirMat.map = activeTextures[digit];
+                  mirMat.opacity = mat.opacity * this.settings.reflectionIntensity * (1.0 - this.settings.reflectionBlur * 0.45) * 1.60;
+                } else {
+                  mat.map = this.inactiveDigitTextures[digit];
+                  mat.opacity = this.settings.unlitOpacity;
+
+                  mirMat.map = this.inactiveDigitTextures[digit];
+                  mirMat.opacity = this.settings.unlitOpacity * 0.70 * this.settings.reflectionIntensity * (1.0 - this.settings.reflectionBlur * 0.45) * 1.60;
+                }
+                mat.needsUpdate = false;
+                mirMat.needsUpdate = false;
+              }
+            }
+          }
+
+          const ms = date.getMilliseconds();
+          const colonActiveOp = (ms < 500) ? 1.0 : 0.25;
+          const colonFlickeredOp = colonActiveOp * flickerFactor;
+
+          for (let colIdx = 0; colIdx < 2; colIdx++) {
+            const meshes = this.colonMeshes[colIdx];
+            const mirMeshes = this.mirroredColonMeshes[colIdx];
+            
+            meshes.forEach(m => {
+              m.material.opacity = colonFlickeredOp;
+            });
+            mirMeshes.forEach(m => {
+              m.material.opacity = colonFlickeredOp * 0.85 * this.settings.reflectionIntensity * (1.0 - this.settings.reflectionBlur * 0.40) * 1.60;
+            });
+          }
+
+          // Update internal tube glow point lights dynamically based on active digits and transitions
+          const baseDigitMul = IS_IOS ? 1.05 : 1.8;
+          const baseSepMul = IS_IOS ? 0.9 : 1.6;
+          TUBE_POSITIONS.forEach((tube, idx) => {
+            const light = this.tubeGlowLights[idx];
+            if (light) {
+              if (tube.isSeparator) {
+                const sIdx = tube.separatorIndex ?? 0;
+                const activeColorHex = this.settings.separatorColors[sIdx];
+                light.color.set(activeColorHex);
+                
+                // Pulsate/flicker the point light with colon colonActiveOp (1.0 or 0.25)
+                const opacity = colonActiveOp * flickerFactor;
+                light.intensity = baseSepMul * this.settings.glowIntensity * opacity;
+                light.distance = IS_IOS ? 3.0 : 4.0;
+              } else {
+                const dIdx = tube.digitIndex ?? 0;
+                const activeColorHex = this.settings.digitColors[dIdx];
+                light.color.set(activeColorHex);
+                
+                const targetDigit = this.targetTimeDigits[dIdx];
+                const opacity = (this.currentTimeOpacities[dIdx][targetDigit] ?? 1.0);
+                light.intensity = baseDigitMul * this.settings.glowIntensity * opacity * flickerFactor;
+                light.distance = IS_IOS ? 3.3 : 4.5;
+              }
+            }
+          });
+
+          const tiltRads = THREE.MathUtils.degToRad(this.settings.reflectionAngle);
+          this.reflectionGroup.rotation.x = tiltRads * 0.12; 
+          
+          this.controls.update();
+          this.renderer.render(this.scene, this.camera);
+        }
+
+        setColor(category, index, value) {
+          if (category === 'digitColors') {
+            this.settings.digitColors[index] = value;
+            this.redrawActiveDigitTextures();
+            const hexText = document.getElementById(`hex-digit-${index}`);
+            if (hexText) hexText.innerText = value.toUpperCase();
+          } 
+          else if (category === 'separatorColors') {
+            this.settings.separatorColors[index] = value;
+            this.redrawColonTextures();
+            const hexText = document.getElementById(`hex-sep-${index}`);
+            if (hexText) hexText.innerText = value.toUpperCase();
+          } 
+          else if (category === 'baseColors') {
+            this.settings.baseColors[index] = value;
+            this.updateLEDGlowColor(index, value);
+            const hexText = document.getElementById(`hex-base-${index}`);
+            if (hexText) hexText.innerText = value.toUpperCase();
+          }
+        }
+
+        setEffectParam(paramName, val) {
+          if (paramName in this.settings) {
+            this.settings[paramName] = val;
+
+            if (paramName === 'unlitOpacity') {
+              this.digitMeshes.forEach(tube => {
+                tube.forEach((mesh) => {
+                  if (mesh.material.opacity <= DEFAULT_SETTINGS.unlitOpacity * 1.5) {
+                    mesh.material.opacity = val;
+                  }
+                });
+              });
+            } else {
+              this.redrawActiveDigitTextures();
+              this.redrawColonTextures();
+            }
+          }
+        }
+
+        updateLEDGlowColor(index, hexColor) {
+          const colorObj = new THREE.Color(hexColor);
+          
+          const torusRing = this.neonGlowRings[index];
+          if (torusRing) {
+            if (torusRing.material) {
+              torusRing.material.color.copy(colorObj);
+            }
+            torusRing.children.forEach((child) => {
+              if (child.material) {
+                child.material.color.copy(colorObj);
+              }
+            });
+          }
+
+          const mirTorusRing = this.mirroredNeonGlowRings[index];
+          if (mirTorusRing) {
+            if (mirTorusRing.material) {
+              mirTorusRing.material.color.copy(colorObj);
+            }
+            mirTorusRing.children.forEach((child) => {
+              if (child.material) {
+                child.material.color.copy(colorObj);
+              }
+            });
+          }
+
+          const light = this.pointLights[index];
+          if (light) {
+            light.color = colorObj;
+          }
+        }
+
+        setDeskStyle(style) {
+          this.settings.tableMaterial = style;
+          const freshTex = this.generateTableTexture(style);
+          
+          if (this.tableMaterialObject) {
+            this.tableMaterialObject.map = freshTex;
+            
+            if (style === 'obsidian') {
+              this.tableMaterialObject.roughness = 0.45;
+              this.tableMaterialObject.metalness = 0.5;
+              this.tableMaterialObject.opacity = 0.48;
+            } else if (style === 'cobalt' || style === 'brass') {
+              this.tableMaterialObject.roughness = 0.22;
+              this.tableMaterialObject.metalness = 0.88;
+              this.tableMaterialObject.opacity = 0.52;
+            } else if (style === 'carbon') {
+              this.tableMaterialObject.roughness = 0.35;
+              this.tableMaterialObject.metalness = 0.4;
+              this.tableMaterialObject.opacity = 0.58;
+            } else {
+              this.tableMaterialObject.roughness = 0.15;
+              this.tableMaterialObject.metalness = 0.35;
+              this.tableMaterialObject.opacity = 0.55;
+            }
+            this.tableMaterialObject.needsUpdate = true;
+          }
+        }
+
+        applyPresetTheme(themeName) {
+          const theme = THEMES[themeName];
+          if (!theme) return;
+
+          this.settings = {
+            ...this.settings,
+            ...theme
+          };
+
+          this.settings.digitColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-digit-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-digit-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+          });
+
+          this.settings.separatorColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-sep-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-sep-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+          });
+
+          this.settings.baseColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-base-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-base-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+            this.updateLEDGlowColor(i, hex);
+          });
+
+          const updates = [
+            { id: 'slider-glow-boost', key: 'glowIntensity', valId: 'val-glow-boost', suffix: '' },
+            { id: 'slider-glow-spread', key: 'glowSpread', valId: 'val-glow-spread', suffix: ' px' },
+            { id: 'slider-glow-corona', key: 'glowOuterBlur', valId: 'val-glow-corona', suffix: ' px' },
+            { id: 'slider-core-thick', key: 'coreThickness', valId: 'val-core-thick', suffix: ' mm' }
+          ];
+
+          updates.forEach(u => {
+            const el = document.getElementById(u.id);
+            const val = this.settings[u.key];
+            if (el) el.value = val.toString();
+            const textLabel = document.getElementById(u.valId);
+            if (textLabel) textLabel.innerText = Number(val).toFixed(2) + u.suffix;
+          });
+
+          const sel = document.getElementById('select-desk-style');
+          if (sel && theme.tableMaterial) {
+            sel.value = theme.tableMaterial;
+            this.setDeskStyle(theme.tableMaterial);
+          }
+
+          this.redrawActiveDigitTextures();
+          this.redrawColonTextures();
+        }
+
+        syncAll(type) {
+          if (type === 'digits') {
+            const H1Color = this.settings.digitColors[0];
+            for (let i = 1; i < 6; i++) {
+              this.settings.digitColors[i] = H1Color;
+              const input = document.getElementById(`color-digit-${i}`);
+              if (input) input.value = H1Color;
+              const hexText = document.getElementById(`hex-digit-${i}`);
+              if (hexText) hexText.innerText = H1Color.toUpperCase();
+            }
+            this.settings.separatorColors[0] = H1Color;
+            this.settings.separatorColors[1] = H1Color;
+            const c1 = document.getElementById('color-sep-0');
+            const c2 = document.getElementById('color-sep-1');
+            if (c1) c1.value = H1Color;
+            if (c2) c2.value = H1Color;
+            const hexSep0 = document.getElementById('hex-sep-0');
+            const hexSep1 = document.getElementById('hex-sep-1');
+            if (hexSep0) hexSep0.innerText = H1Color.toUpperCase();
+            if (hexSep1) hexSep1.innerText = H1Color.toUpperCase();
+
+            this.redrawActiveDigitTextures();
+            this.redrawColonTextures();
+          } 
+          else if (type === 'bases') {
+            const B1Color = this.settings.baseColors[0];
+            for (let i = 1; i < 8; i++) {
+              this.settings.baseColors[i] = B1Color;
+              const input = document.getElementById(`color-base-${i}`);
+              if (input) input.value = B1Color;
+              const hexText = document.getElementById(`hex-base-${i}`);
+              if (hexText) hexText.innerText = B1Color.toUpperCase();
+              this.updateLEDGlowColor(i, B1Color);
+            }
+          }
+        }
+
+        mutate(type) {
+          const makeRandomColor = () => {
+            const letters = '6789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+              color += letters[Math.floor(Math.random() * letters.length)];
+            }
+            return color;
+          };
+
+          if (type === 'digits') {
+            this.settings.digitColors.forEach((_, i) => {
+              const rand = makeRandomColor();
+              this.settings.digitColors[i] = rand;
+              const el = document.getElementById(`color-digit-${i}`);
+              if (el) el.value = rand;
+              const hexText = document.getElementById(`hex-digit-${i}`);
+              if (hexText) hexText.innerText = rand.toUpperCase();
+            });
+            const randSep = makeRandomColor();
+            this.settings.separatorColors[0] = randSep;
+            const randSep2 = makeRandomColor();
+            this.settings.separatorColors[1] = randSep2;
+            const c1 = document.getElementById('color-sep-0');
+            if (c1) c1.value = randSep;
+            const c2 = document.getElementById('color-sep-1');
+            if (c2) c2.value = randSep2;
+            const hexSep0 = document.getElementById('hex-sep-0');
+            const hexSep1 = document.getElementById('hex-sep-1');
+            if (hexSep0) hexSep0.innerText = randSep.toUpperCase();
+            if (hexSep1) hexSep1.innerText = randSep2.toUpperCase();
+
+            this.redrawActiveDigitTextures();
+            this.redrawColonTextures();
+          } 
+          else if (type === 'bases') {
+            this.settings.baseColors.forEach((_, i) => {
+              const rand = makeRandomColor();
+              this.settings.baseColors[i] = rand;
+              const el = document.getElementById(`color-base-${i}`);
+              if (el) el.value = rand;
+              const hexText = document.getElementById(`hex-base-${i}`);
+              if (hexText) hexText.innerText = rand.toUpperCase();
+              this.updateLEDGlowColor(i, rand);
+            });
+          }
+        }
+
+        resetToOriginal() {
+          this.applyCustomPresetSettings(DEFAULT_SETTINGS);
+        }
+
+        applyCustomPresetSettings(theme) {
+          if (!theme) return;
+
+          this.settings = {
+            ...this.settings,
+            ...theme
+          };
+
+          // Synchronize color picker UI inputs
+          if (Array.isArray(this.settings.digitColors)) {
+            this.settings.digitColors.forEach((hex, i) => {
+              const el = document.getElementById(`color-digit-${i}`);
+              if (el) el.value = hex;
+              const hexText = document.getElementById(`hex-digit-${i}`);
+              if (hexText) hexText.innerText = hex.toUpperCase();
+            });
+          }
+
+          if (Array.isArray(this.settings.separatorColors)) {
+            this.settings.separatorColors.forEach((hex, i) => {
+              const el = document.getElementById(`color-sep-${i}`);
+              if (el) el.value = hex;
+              const hexText = document.getElementById(`hex-sep-${i}`);
+              if (hexText) hexText.innerText = hex.toUpperCase();
+            });
+          }
+
+          if (Array.isArray(this.settings.baseColors)) {
+            this.settings.baseColors.forEach((hex, i) => {
+              const el = document.getElementById(`color-base-${i}`);
+              if (el) el.value = hex;
+              const hexText = document.getElementById(`hex-base-${i}`);
+              if (hexText) hexText.innerText = hex.toUpperCase();
+              this.updateLEDGlowColor(i, hex);
+            });
+          }
+
+          // Synchronize Sliders
+          const sliders = [
+            { id: 'slider-glow-boost', key: 'glowIntensity', valId: 'val-glow-boost', suffix: '', isPct: false, scale: 1 },
+            { id: 'slider-glow-spread', key: 'glowSpread', valId: 'val-glow-spread', suffix: ' px', isPct: false, scale: 1 },
+            { id: 'slider-glow-corona', key: 'glowOuterBlur', valId: 'val-glow-corona', suffix: ' px', isPct: false, scale: 1 },
+            { id: 'slider-core-thick', key: 'coreThickness', valId: 'val-core-thick', suffix: ' mm', isPct: false, scale: 1, fix: 1 },
+            { id: 'slider-unlit-op', key: 'unlitOpacity', valId: 'val-unlit-op', suffix: ' %', isPct: true, scale: 100 },
+            { id: 'slider-flicker-amp', key: 'flickerIntensity', valId: 'val-flicker-amp', suffix: ' %', isPct: true, scale: 100 },
+            { id: 'slider-ref-intensity', key: 'reflectionIntensity', valId: 'val-ref-intensity', suffix: ' %', isPct: true, scale: 100 },
+            { id: 'slider-ref-rough', key: 'reflectionBlur', valId: 'val-ref-rough', suffix: ' %', isPct: true, scale: 100 },
+            { id: 'slider-ref-tilt', key: 'reflectionAngle', valId: 'val-ref-tilt', suffix: ' °', isPct: false, scale: 1 }
+          ];
+
+          sliders.forEach(u => {
+            const el = document.getElementById(u.id);
+            const val = this.settings[u.key] ?? DEFAULT_SETTINGS[u.key];
+            if (el) {
+              el.value = (val * u.scale).toString();
+            }
+            const label = document.getElementById(u.valId);
+            if (label) {
+              if (u.isPct) {
+                label.innerText = Math.round(val * u.scale) + u.suffix;
+              } else if (u.fix !== undefined) {
+                label.innerText = Number(val).toFixed(u.fix) + u.suffix;
+              } else {
+                label.innerText = Number(val).toFixed(2) + u.suffix;
+              }
+            }
+          });
+
+          // Checkbox
+          const chk = document.getElementById('check-ficker');
+          if (chk) {
+            chk.checked = !!this.settings.flickerEnabled;
+          }
+
+          // Select Desktop Style
+          const sel = document.getElementById('select-desk-style');
+          if (sel && this.settings.tableMaterial) {
+            sel.value = this.settings.tableMaterial;
+            this.setDeskStyle(this.settings.tableMaterial);
+          }
+
+          this.redrawActiveDigitTextures();
+          this.redrawColonTextures();
+        }
+
+        saveCustomPreset(slotIndex) {
+          const presetName = `nixie_custom_preset_${slotIndex}`;
+          localStorage.setItem(presetName, JSON.stringify(this.settings));
+          
+          const btn = document.getElementById(`save-btn-${slotIndex}`);
+          const btnBottom = document.getElementById(`save-btn-bottom-${slotIndex}`);
+          
+          if (btn) {
+            const orig = btn.innerText;
+            btn.innerText = "✓ 存檔";
+            btn.classList.add("text-emerald-400");
+            setTimeout(() => {
+              btn.innerText = orig;
+              btn.classList.remove("text-emerald-400");
+            }, 1500);
+          }
+          if (btnBottom) {
+            const orig = btnBottom.innerText;
+            btnBottom.innerText = "已存";
+            btnBottom.classList.add("text-emerald-400");
+            setTimeout(() => {
+              btnBottom.innerText = orig;
+              btnBottom.classList.remove("text-emerald-400");
+            }, 1500);
+          }
+          this.loadCustomPreset(slotIndex); // Focus highlighted state
+        }
+
+        loadCustomPreset(slotIndex) {
+          const presetName = `nixie_custom_preset_${slotIndex}`;
+          const dataStr = localStorage.getItem(presetName);
+          if (dataStr) {
+            try {
+              const loadedSettings = JSON.parse(dataStr);
+              this.applyCustomPresetSettings(loadedSettings);
+
+              // Highlight selected slot on UI
+              for (let i = 1; i <= 3; i++) {
+                const el = document.getElementById(`load-btn-${i}`);
+                if (el) {
+                  if (i === slotIndex) {
+                    el.classList.add("border-orange-500", "text-orange-400");
+                    el.classList.remove("text-slate-300");
+                  } else {
+                    el.classList.remove("border-orange-500", "text-orange-400");
+                    el.classList.add("text-slate-300");
+                  }
+                }
+
+                const elBottom = document.getElementById(`load-btn-bottom-${i}`);
+                if (elBottom) {
+                  if (i === slotIndex) {
+                    elBottom.classList.add("bg-orange-500/20", "text-orange-400");
+                  } else {
+                    elBottom.classList.remove("bg-orange-500/20", "text-orange-400");
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("Error loading custom preset: ", e);
+            }
+          }
+        }
+
+        resetCustomPreset1ToDefault() {
+          localStorage.setItem('nixie_custom_preset_1', JSON.stringify({
+            ...DEFAULT_SETTINGS,
+            tableMaterial: 'rosewood'
+          }));
+          this.loadCustomPreset(1);
+
+          // Give visual success feedback on the Reset button
+          const btn = document.querySelector('button[onclick="resetCustomPreset1()"]');
+          if (btn) {
+            const originalText = btn.innerText;
+            btn.innerText = "已重設 ✓";
+            btn.classList.add("text-emerald-400", "border-emerald-500/50");
+            setTimeout(() => {
+              btn.innerText = originalText;
+              btn.classList.remove("text-emerald-400", "border-emerald-500/50");
+            }, 1500);
+          }
+        }
+
+        initAndLoadFirstPreset() {
+          // Version migration flag to force-reset preset 1 to the new beautiful defaults on first run of this version
+          const verCheck = localStorage.getItem('nixie_preset_v3');
+          if (!verCheck) {
+            localStorage.setItem('nixie_custom_preset_1', JSON.stringify({
+              ...DEFAULT_SETTINGS,
+              tableMaterial: 'rosewood'
+            }));
+            localStorage.setItem('nixie_preset_v3', 'true');
+          } else {
+            const saved1 = localStorage.getItem('nixie_custom_preset_1');
+            if (!saved1) {
+              localStorage.setItem('nixie_custom_preset_1', JSON.stringify({
+                ...DEFAULT_SETTINGS,
+                tableMaterial: 'rosewood'
+              }));
+            }
+          }
+
+          const saved2 = localStorage.getItem('nixie_custom_preset_2');
+          if (!saved2) {
+            localStorage.setItem('nixie_custom_preset_2', JSON.stringify({
+              ...THEMES.cyberpunk,
+              tableMaterial: 'carbon'
+            }));
+          }
+
+          const saved3 = localStorage.getItem('nixie_custom_preset_3');
+          if (!saved3) {
+            localStorage.setItem('nixie_custom_preset_3', JSON.stringify({
+              ...THEMES.prism,
+              tableMaterial: 'brass'
+            }));
+          }
+
+          this.loadCustomPreset(1);
+        }
+
+        syncUIToState() {
+          this.settings.digitColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-digit-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-digit-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+          });
+          this.settings.separatorColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-sep-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-sep-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+          });
+          this.settings.baseColors.forEach((hex, i) => {
+            const el = document.getElementById(`color-base-${i}`);
+            if (el) el.value = hex;
+            const hexText = document.getElementById(`hex-base-${i}`);
+            if (hexText) hexText.innerText = hex.toUpperCase();
+          });
+        }
+
+        onWindowResize() {
+          if (!this.container || !this.camera || !this.renderer) return;
+          const w = this.container.clientWidth;
+          const h = this.container.clientHeight;
+          this.camera.aspect = w / h;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(w, h);
+        }
+
+        dispose() {
+          cancelAnimationFrame(this.requestID);
+          window.removeEventListener('resize', this.onWindowResize.bind(this));
+        }
+      }
+
+      window.addEventListener('load', () => {
+        const engine = new NixieClockEngine();
+        window.nixieClockController = engine;
+      });
+    </script>
+
+    <!-- Global functions linked to the UI buttons/sliders to proxy calls to our TS main engine -->
+    <script>
+      // Proxy methods to update settings parameters globally
+      window.updateColorParam = function(category, index, val) {
+        if (window.nixieClockController) {
+          window.nixieClockController.setColor(category, index, val);
+        }
+      };
+
+      window.updateEffectSlider = function(paramName, val, valId, suffix = '', valText = null) {
+        // Update label text
+        const labelStr = valText !== null ? valText : Number(val).toFixed(suffix === ' mm' ? 1 : 2);
+        document.getElementById(valId).innerText = labelStr + suffix;
+        // Notify engine
+        if (window.nixieClockController) {
+          window.nixieClockController.setEffectParam(paramName, parseFloat(val));
+        }
+      };
+
+      window.updateFlickerToggle = function(checked) {
+        if (window.nixieClockController) {
+          window.nixieClockController.setEffectParam('flickerEnabled', checked);
+        }
+      };
+
+      window.updateDeskStyle = function(style) {
+        if (window.nixieClockController) {
+          window.nixieClockController.setDeskStyle(style);
+        }
+      };
+
+      window.applyThemeSet = function(themeName) {
+        if (window.nixieClockController) {
+          window.nixieClockController.applyPresetTheme(themeName);
+        }
+      };
+
+      window.syncAllColors = function(type) {
+        if (window.nixieClockController) {
+          window.nixieClockController.syncAll(type);
+        }
+      };
+
+      window.mutateColors = function(type) {
+        if (window.nixieClockController) {
+          window.nixieClockController.mutate(type);
+        }
+      };
+
+      window.resetSettings = function() {
+        if (window.nixieClockController) {
+          window.nixieClockController.resetToOriginal();
+        }
+      };
+
+      window.saveCustomPreset = function(slotIndex) {
+        if (window.nixieClockController) {
+          window.nixieClockController.saveCustomPreset(slotIndex);
+        }
+      };
+
+      window.applyCustomPreset = function(slotIndex) {
+        if (window.nixieClockController) {
+          window.nixieClockController.loadCustomPreset(slotIndex);
+        }
+      };
+
+      window.resetCustomPreset1 = function() {
+        if (window.nixieClockController) {
+          window.nixieClockController.resetCustomPreset1ToDefault();
+        }
+      };
+
+      // Tab switcher function
+      window.switchTab = function(tabName) {
+        const tabs = ['colors', 'effects', 'desk'];
+        tabs.forEach(t => {
+          document.getElementById('tab-content-' + t).classList.add('hidden');
+          document.getElementById('tab-btn-' + t).className = "flex-1 py-3.5 text-center border-b-2 border-transparent text-white/50 hover:text-white cursor-pointer duration-150";
+        });
+        document.getElementById('tab-content-' + tabName).classList.remove('hidden');
+        document.getElementById('tab-btn-' + tabName).className = "flex-1 py-3.5 text-center border-b-2 border-orange-500 text-orange-500 cursor-pointer duration-150";
+      };
+
+      // Toggle parameters settings panel popup
+      window.togglePopup = function() {
+        const panel = document.getElementById('popup-control');
+        const state = panel.classList.contains('hidden');
+        if (state) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      };
+
+      // Toggle mini popups
+      window.togglePresetsPopup = function(event) {
+        if (event) event.stopPropagation();
+        const panel = document.getElementById('popup-presets');
+        const isHidden = panel.classList.contains('hidden');
+        
+        // Auto-hide custom saves
+        document.getElementById('popup-custom-saves').classList.add('hidden');
+        
+        if (isHidden) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      };
+
+      window.closePresetsPopup = function() {
+        document.getElementById('popup-presets').classList.add('hidden');
+      };
+
+      window.toggleCustomSavesPopup = function(event) {
+        if (event) event.stopPropagation();
+        const panel = document.getElementById('popup-custom-saves');
+        const isHidden = panel.classList.contains('hidden');
+        
+        // Auto-hide presets
+        document.getElementById('popup-presets').classList.add('hidden');
+        
+        if (isHidden) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      };
+
+      window.closeCustomSavesPopup = function() {
+        document.getElementById('popup-custom-saves').classList.add('hidden');
+      };
+
+      // Handle closing settings panel when clicking/touching outside of it
+      // Using capture phase (true) prevents Three.js/OrbitControls event propagation blocks from stopping this check.
+      const handleOutsideClick = function(event) {
+        if (!event || !event.target) return;
+
+        // 1. Settings panel
+        const panel = document.getElementById('popup-control');
+        const toggleBtn = document.getElementById('config-toggle-btn');
+        if (panel && toggleBtn && !panel.classList.contains('hidden')) {
+          if (typeof panel.contains === 'function' && typeof toggleBtn.contains === 'function') {
+            if (!panel.contains(event.target) && !toggleBtn.contains(event.target)) {
+              panel.classList.add('hidden');
+            }
+          }
+        }
+
+        // 2. Presets panel
+        const presetsPanel = document.getElementById('popup-presets');
+        const presetsBtn = document.getElementById('presets-toggle-btn');
+        if (presetsPanel && presetsBtn && !presetsPanel.classList.contains('hidden')) {
+          if (typeof presetsPanel.contains === 'function' && typeof presetsBtn.contains === 'function') {
+            if (!presetsPanel.contains(event.target) && !presetsBtn.contains(event.target)) {
+              presetsPanel.classList.add('hidden');
+            }
+          }
+        }
+
+        // 3. Custom Saves panel
+        const savesPanel = document.getElementById('popup-custom-saves');
+        const savesBtn = document.getElementById('custom-saves-toggle-btn');
+        if (savesPanel && savesBtn && !savesPanel.classList.contains('hidden')) {
+          if (typeof savesPanel.contains === 'function' && typeof savesBtn.contains === 'function') {
+            if (!savesPanel.contains(event.target) && !savesBtn.contains(event.target)) {
+              savesPanel.classList.add('hidden');
+            }
+          }
+        }
+      };
+
+      document.addEventListener('pointerdown', handleOutsideClick, true);
+      document.addEventListener('mousedown', handleOutsideClick, true);
+      document.addEventListener('touchstart', handleOutsideClick, { capture: true, passive: true });
+
+      // Draggable logic for the parameters pop-up window
+      (function() {
+        const header = document.getElementById("popup-header");
+        const panel = document.getElementById("popup-control");
+        if (!header || !panel) return;
+
+        let startX = 0, startY = 0, initialX = 0, initialY = 0;
+
+        header.addEventListener("mousedown", dragMouseDown);
+
+        function dragMouseDown(e) {
+          e.preventDefault();
+          startX = e.clientX;
+          startY = e.clientY;
+          
+          // Get current panel positions
+          const rect = panel.getBoundingClientRect();
+          initialX = rect.left;
+          initialY = rect.top;
+          
+          // Update panel position style to absolute coordinate system matching initial state
+          panel.style.bottom = 'auto';
+          panel.style.right = 'auto';
+          panel.style.left = initialX + 'px';
+          panel.style.top = initialY + 'px';
+
+          document.addEventListener("mouseup", closeDragElement);
+          document.addEventListener("mousemove", elementDrag);
+        }
+
+        function elementDrag(e) {
+          e.preventDefault();
+          let dx = e.clientX - startX;
+          let dy = e.clientY - startY;
+          panel.style.left = (initialX + dx) + "px";
+          panel.style.top = (initialY + dy) + "px";
+        }
+
+        function closeDragElement() {
+          document.removeEventListener("mouseup", closeDragElement);
+          document.removeEventListener("mousemove", elementDrag);
+        }
+      })();
+    </script>
+  </body>
+</html>

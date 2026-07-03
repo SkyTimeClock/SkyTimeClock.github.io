@@ -1,0 +1,1521 @@
+<!doctype html>
+<html lang="zh-TW" class="transition-colors duration-500">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>慢鐘 · Slow Clock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@300;400&family=Noto+Serif+TC:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Noto Sans TC"', 'sans-serif'],
+              serif: ['"Noto Serif TC"', 'serif'],
+              display: ['"Cormorant Garamond"', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --cream: #F4EFEB;
+        --warmWhite: #FCFBF9;
+        --borderColor: #E6DDD4;
+        --clockBorder: #E6DDD4;
+        --earth: #8C7A6B;
+        --earthDeep: #594C42;
+        --ink: #2B2421;
+        --inkSoft: #6E625D;
+        --sage: #A3B19B;
+        --sageLight: #DCE2D9;
+        --sageDeep: #586751;
+        --terracotta: #C87A53;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(138, 158, 140, 0.3); border-radius: 9999px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(138, 158, 140, 0.5); }
+      body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+      .noise-overlay::before {
+        content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.75;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      }
+      .bg-botanical-dots {
+        background-image: radial-gradient(rgba(196, 168, 130, 0.15) 1.5px, transparent 1.5px);
+        background-size: 24px 24px;
+      }
+      @keyframes leafDrift {
+        0% { transform: translateY(105vh) translateX(0) rotate(0deg); opacity: 0; }
+        15% { opacity: 0.25; }
+        90% { opacity: 0.25; }
+        100% { transform: translateY(-10vh) translateX(50px) rotate(360deg); opacity: 0; }
+      }
+      .leaf-drift-1 { animation: leafDrift 18s linear infinite; }
+      .leaf-drift-2 { animation: leafDrift 24s linear infinite; animation-delay: 4s; }
+      .leaf-drift-3 { animation: leafDrift 21s linear infinite; animation-delay: 8s; }
+      .leaf-drift-4 { animation: leafDrift 28s linear infinite; animation-delay: 12s; }
+      @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+      .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+  </head>
+  <body class="noise-overlay bg-botanical-dots bg-[var(--cream)] text-[var(--ink)] min-h-screen flex flex-col font-sans selection:bg-[var(--earth)]/20 transition-colors duration-500 overflow-x-hidden">
+    
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <div class="absolute text-lg leaf-drift-1 select-none">🍃</div>
+      <div class="absolute text-lg leaf-drift-2 select-none">🌿</div>
+      <div class="absolute text-lg leaf-drift-3 select-none">🍃</div>
+      <div class="absolute text-lg leaf-drift-4 select-none">🌿</div>
+    </div>
+
+    <header class="relative z-10 max-w-7xl w-full mx-auto px-6 pt-6 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[var(--borderColor)]/60">
+      <div class="flex items-center gap-3">
+        <h1 class="font-serif text-xl md:text-2xl font-semibold tracking-wide text-[var(--ink)] flex items-center gap-2">
+          慢鐘 <span class="font-display font-light italic text-base md:text-lg text-[var(--earthDeep)]">Slow Clock</span>
+        </h1>
+        <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-[var(--borderColor)] text-[10px] text-[var(--inkSoft)] font-serif select-none">
+          <span id="seasonPip" class="w-1.5 h-1.5 rounded-full inline-block transition-colors duration-500"></span>
+          <span id="seasonLabel"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
+        <span class="text-[10px] font-serif uppercase tracking-wider text-[var(--inkSoft)]/70 shrink-0 hidden sm:inline">畫境：</span>
+        <div id="themeBarContainer" class="flex items-center gap-1.5"></div>
+      </div>
+    </header>
+
+    <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- LEFT COLUMN -->
+      <section class="lg:col-span-5 flex flex-col items-center gap-6">
+        <div class="w-full bg-[var(--warmWhite)] border border-[var(--clockBorder)] rounded-3xl p-6 md:p-8 flex flex-col items-center shadow-[0_4px_24px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_32px_rgba(0,0,0,0.05)] transition-all duration-500 relative overflow-hidden group">
+          <div class="absolute -inset-10 bg-radial from-[var(--earth)]/5 to-transparent rounded-full opacity-30 group-hover:scale-110 transition-transform duration-1000 pointer-events-none"></div>
+
+          <div class="relative z-10 flex p-1 bg-[var(--cream)] border border-[var(--borderColor)]/40 rounded-full mb-8 max-w-[280px] w-full">
+            <button id="tabReal" class="flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer bg-[var(--warmWhite)] text-[var(--ink)] font-normal shadow-sm">真實時鐘</button>
+            <button id="tabTimer" class="flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer text-[var(--inkSoft)] font-light">正念沙漏</button>
+          </div>
+
+          <div class="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center rounded-full border-2 border-[var(--clockBorder)] shadow-[0_8px_32px_rgba(140,122,107,0.08)] bg-[var(--cream)]/45">
+            <div class="absolute inset-4 rounded-full pointer-events-none">
+              <span class="absolute top-1 left-1/2 -translate-x-1/2 font-display text-[var(--inkSoft)]/50 text-sm">XII</span>
+              <span class="absolute right-2.5 top-1/2 -translate-y-1/2 font-display text-[var(--inkSoft)]/50 text-sm">III</span>
+              <span class="absolute bottom-1 left-1/2 -translate-x-1/2 font-display text-[var(--inkSoft)]/50 text-sm">VI</span>
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 font-display text-[var(--inkSoft)]/50 text-sm">IX</span>
+            </div>
+            <div class="absolute inset-7 rounded-full border border-dashed border-[var(--borderColor)]/50 pointer-events-none"></div>
+
+            <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-10" viewBox="0 0 288 288">
+              <circle id="timerProgressRing" cx="144" cy="144" r="120" fill="transparent" stroke="var(--earth)" stroke-width="1.5" stroke-linecap="round" class="transition-all duration-1000 ease-linear" style="display: none;" />
+            </svg>
+
+            <div class="absolute top-[35%] left-1/2 -translate-x-1/2 font-display text-[10px] tracking-[0.25em] text-[var(--earthDeep)]/45 uppercase select-none pointer-events-none" id="clockSvgText">slow</div>
+
+            <div id="hourHand" class="absolute w-1 h-16 bg-[var(--earthDeep)] rounded-full origin-bottom bottom-1/2 left-1/2 -translate-x-1/2 transition-transform duration-500 ease-out z-20"></div>
+            <div id="minuteHand" class="absolute w-[1.5px] h-24 bg-[var(--earth)] rounded-full origin-bottom bottom-1/2 left-1/2 -translate-x-1/2 transition-transform duration-500 ease-out z-20"></div>
+            <div id="secondHand" class="absolute w-[0.5px] h-28 bg-[var(--terracotta)] rounded-full origin-bottom bottom-1/2 left-1/2 -translate-x-1/2 transition-transform duration-100 ease-linear z-30"></div>
+            <div class="absolute w-3.5 h-3.5 rounded-full bg-[var(--cream)] border-2 border-[var(--earthDeep)] z-40 shadow-xs"></div>
+          </div>
+
+          <div class="mt-8 flex flex-col items-center text-center">
+            <div id="digitalTime" class="font-display text-4xl font-light tracking-widest text-[var(--ink)]">00：00</div>
+            <div id="digitalDate" class="text-xs font-serif text-[var(--inkSoft)] mt-1 tracking-wide">0000 · 一月 · 週一</div>
+            <p id="clockLabel" class="text-[11px] font-serif italic text-[var(--earthDeep)]/75 mt-3 tracking-wide">此刻，你在哪裡？</p>
+          </div>
+
+          <div id="timerDoneBanner" class="absolute inset-0 bg-[var(--warmWhite)]/95 flex-col items-center justify-center p-6 text-center z-50 hidden transition-all duration-500 animate-fade-in">
+            <div class="text-3xl mb-3 animate-bounce">🔔</div>
+            <h3 class="font-serif text-lg text-[var(--ink)] font-normal">靜心圓滿</h3>
+            <p class="text-xs text-[var(--inkSoft)] mt-1.5 leading-relaxed max-w-[200px]">當你回到喧囂，請記得帶上這份內極致的寧靜與和諧。</p>
+            <button onclick="resetTimer()" class="mt-5 px-5 py-1.5 text-xs bg-[var(--earth)] text-[var(--cream)] rounded-full hover:opacity-90 transition-opacity cursor-pointer">重置沙漏</button>
+          </div>
+        </div>
+
+        <div id="timerControls" class="w-full bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 rounded-2xl p-5 shadow-xs flex flex-col items-center gap-4 hidden">
+          <div id="timerPresets" class="flex flex-wrap gap-1.5 justify-center"></div>
+          <div class="flex items-center gap-4 mt-1">
+            <button id="btnStartPause" class="w-10 h-10 rounded-full bg-[var(--earth)] text-[var(--cream)] flex items-center justify-center shadow-xs cursor-pointer hover:scale-[1.05] transition-all duration-300" title="開始靜心">
+              <svg class="w-4 h-4 fill-current text-[var(--cream)] ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <button id="btnReset" class="w-10 h-10 rounded-full border border-[var(--borderColor)] text-[var(--inkSoft)] hover:text-[var(--ink)] flex items-center justify-center cursor-pointer hover:bg-[var(--cream)] transition-all duration-300 hidden" title="重置">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN -->
+      <section class="lg:col-span-7 flex flex-col gap-6">
+        
+        <!-- BREATHING -->
+        <div class="bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 rounded-3xl p-6 shadow-xs flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+          <div class="absolute inset-0 bg-gradient-to-tr from-[var(--sageLight)]/10 to-transparent pointer-events-none"></div>
+          <div class="relative w-40 h-40 md:w-44 md:h-44 flex items-center justify-center shrink-0">
+            <div class="absolute inset-2 rounded-full border border-[var(--sage)]/15 animate-ping opacity-25"></div>
+            <div id="breathingOrb" class="w-20 h-20 rounded-full bg-gradient-to-tr from-[var(--sage)] to-[var(--sageLight)] flex items-center justify-center shadow-[0_8px_32px_rgba(138,158,140,0.25)] relative z-10 transition-transform">
+              <div id="breathingOrbTimer" class="font-display font-light text-xs text-[var(--sageDeep)] tracking-wide"></div>
+            </div>
+          </div>
+          <div class="flex-1 flex flex-col justify-between h-full relative z-10">
+            <div>
+              <div class="flex items-center justify-between">
+                <h2 class="font-serif text-base font-semibold text-[var(--ink)]">正念呼吸引導</h2>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[var(--sage)] animate-pulse"></span>
+                  <span class="text-[10px] font-serif text-[var(--sageDeep)] tracking-wider">BREATHE WELL</span>
+                </div>
+              </div>
+              <div id="breathingPatterns" class="flex flex-wrap gap-1.5 mt-3"></div>
+              <p id="breathingDesc" class="text-xs text-[var(--inkSoft)] leading-relaxed mt-3.5 max-w-sm"></p>
+            </div>
+            <div class="mt-5 flex items-center justify-between gap-4 border-t border-[var(--borderColor)]/40 pt-4">
+              <div class="flex flex-col">
+                <span id="breathingStatusText" class="text-[11px] font-serif text-[var(--sageDeep)]">點擊下方開始，跟隨氣息起伏</span>
+                <span id="breathingCycles" class="text-[10px] text-[var(--inkSoft)] font-serif mt-0.5 hidden"></span>
+              </div>
+              <button id="btnBreathTrigger" class="flex items-center gap-1.5 px-5 py-2 rounded-full text-xs transition-all duration-300 border shadow-xs cursor-pointer bg-[var(--sageDeep)] text-[var(--cream)] border-transparent hover:opacity-90 hover:scale-[1.02]">
+                <svg class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>開始呼吸</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUOTES & DETOX FORM -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 rounded-3xl p-6 shadow-xs flex flex-col justify-between h-56 relative group overflow-hidden">
+            <span class="absolute top-4 right-4 font-display text-4xl text-[var(--earth)]/10 select-none">“</span>
+            <div class="flex-1 flex flex-col justify-center">
+              <p id="quoteText" class="font-serif text-sm text-[var(--ink)] leading-relaxed transition-opacity duration-300 tracking-wide"></p>
+              <p id="quoteSource" class="text-[11px] font-serif text-[var(--earthDeep)] mt-3.5 transition-opacity duration-300"></p>
+            </div>
+            <div id="quoteDots" class="flex items-center gap-1.5 border-t border-[var(--borderColor)]/30 pt-3"></div>
+          </div>
+
+          <div class="bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 rounded-3xl p-6 shadow-xs flex flex-col justify-between h-56 relative overflow-hidden">
+            <form id="thoughtForm" class="flex-1 flex flex-col justify-between h-full">
+              <div class="flex-1 flex flex-col" id="scratchpadInputStep">
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="font-serif text-xs font-semibold text-[var(--ink)] flex items-center gap-1.5">
+                    意念釋放艙 <span class="font-display font-light italic text-[var(--earthDeep)] text-[10px]">Thought Oasis</span>
+                  </h3>
+                  <span class="text-[9px] font-sans text-[var(--inkSoft)]/60">寫下執念，放手釋放</span>
+                </div>
+                <textarea id="thoughtInput" placeholder="寫下此刻卡在腦海中的煩雜、執念或擔憂⋯" class="flex-1 w-full bg-[var(--cream)]/40 hover:bg-[var(--cream)]/60 focus:bg-[var(--warmWhite)] border border-[var(--borderColor)]/50 focus:border-[var(--earth)]/50 rounded-xl p-3 text-xs text-[var(--ink)] font-sans placeholder-[var(--inkSoft)]/50 outline-none resize-none transition-all duration-300"></textarea>
+              </div>
+              <div class="flex justify-end mt-3 border-t border-[var(--borderColor)]/30 pt-3" id="scratchpadInputButtons">
+                <button id="btnRelease" type="submit" disabled class="flex items-center gap-1 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-sans tracking-wide cursor-pointer bg-[var(--earth)] text-[var(--cream)] hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 shadow-xs">
+                  <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>放手釋放</span>
+                </button>
+              </div>
+            </form>
+            <div id="scratchpadReleasingStep" class="flex-1 flex flex-col items-center justify-center text-center hidden animate-pulse">
+              <div class="text-2xl mb-2">🎈</div>
+              <p class="font-serif text-xs text-[var(--earthDeep)]">正念釋放中 ⋯</p>
+              <p class="text-[10px] text-[var(--inkSoft)] mt-1">看著它化為肥皂泡，飄散於虛空</p>
+            </div>
+            <div id="scratchpadReleasedStep" class="flex-1 flex flex-col items-center justify-center text-center hidden animate-fade-in">
+              <div class="text-2xl mb-1.5">✨</div>
+              <p class="font-serif text-xs text-[var(--ink)] leading-relaxed">釋放完成。</p>
+              <p class="text-[10px] text-[var(--inkSoft)] leading-relaxed mt-1 max-w-[200px]">它只是一個念頭，並不代表真實的你。</p>
+              <button id="btnWriteAnother" class="mt-3.5 px-3.5 py-1 text-[10px] border border-[var(--borderColor)] text-[var(--inkSoft)] hover:text-[var(--ink)] rounded-full transition-all cursor-pointer">再釋放一個</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BENTO GUIDE -->
+        <div class="bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 rounded-3xl p-6 shadow-xs min-h-[290px] relative">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-serif text-base font-semibold text-[var(--ink)] flex items-center gap-2">
+              慢生活實踐 <span class="font-display font-light italic text-[var(--earthDeep)] text-xs md:text-sm">Slow Living Guide</span>
+            </h2>
+            <button id="btnBackPractice" class="hidden flex items-center gap-1 px-3 py-1 rounded-full border border-[var(--borderColor)] text-[10px] text-[var(--inkSoft)] hover:text-[var(--ink)] hover:bg-[var(--cream)] transition-all cursor-pointer">← 返回選單</button>
+          </div>
+
+          <div id="practicesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+
+          <div id="practiceDetailBoard" class="hidden min-h-[180px] flex flex-col justify-between">
+            <!-- FOOD -->
+            <div id="panel-food" class="hidden flex flex-col justify-between flex-1">
+              <div>
+                <h3 id="eatingStepTitle" class="font-serif text-sm font-semibold text-[var(--ink)] mb-2">🍵 1. 溫熱手捧</h3>
+                <p id="eatingStepDesc" class="text-xs text-[var(--inkSoft)] leading-relaxed max-w-lg"></p>
+              </div>
+              <div class="flex justify-between items-center border-t border-[var(--borderColor)]/40 pt-4 mt-4">
+                <button id="btnEatingPrev" class="px-4 py-1 text-[10px] font-sans border border-[var(--borderColor)] text-[var(--inkSoft)] disabled:opacity-40 disabled:cursor-not-allowed rounded-full cursor-pointer">上一步</button>
+                <button id="btnEatingNext" class="px-5 py-1.5 text-[10px] md:text-xs font-sans bg-[var(--earthDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer">下一步</button>
+              </div>
+            </div>
+
+            <!-- DETOX -->
+            <div id="panel-detox" class="hidden flex flex-col items-center text-center py-4 flex-1">
+              <div id="detoxTimerText" class="font-display text-4xl font-light tracking-widest text-[var(--ink)] mb-2">10:00</div>
+              <p class="text-[10px] text-[var(--inkSoft)] mb-4 max-w-sm">請將手機扣過來放好，享受十分鐘純淨無干擾、無資訊的清明空間。</p>
+              <div class="flex items-center gap-3">
+                <button id="btnDetoxTrigger" class="px-5 py-1.5 text-xs font-sans bg-[var(--sageDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer">開啟 10 分鐘排毒</button>
+              </div>
+              <div class="mt-4 text-[9px] font-serif text-[var(--earthDeep)] flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full border border-[var(--earth)]/40 bg-[var(--earth)]/10 text-[9px] flex items-center justify-center">✓</span>
+                <span>累計排毒：<strong id="detoxAccumulated" class="font-sans text-[11px] font-normal">0</strong> 分鐘</span>
+                <span id="detoxPulsingText" class="hidden text-[var(--sageDeep)] animate-pulse ml-2">● 靜心排毒中</span>
+              </div>
+            </div>
+
+            <!-- HYGGE -->
+            <div id="panel-hygge" class="hidden flex flex-col flex-1">
+              <p class="text-[10px] text-[var(--inkSoft)] mb-4 max-w-lg">拉動滑桿或點擊名稱，動態混音。由原生 Web Audio API 即時合成，無頻寬消耗，安全純粹。</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div class="border border-[var(--borderColor)]/40 rounded-xl p-3 flex flex-col gap-2 bg-[var(--cream)]/10" id="indicator-rain">
+                  <button id="toggle-rain" class="text-xs font-serif font-semibold text-left flex items-center gap-1.5 hover:opacity-85 cursor-pointer">🌧️ 窗外微雨</button>
+                  <input type="range" id="vol-rain" min="0" max="1" step="0.05" value="0" class="w-full accent-[var(--earth)] h-1 rounded-lg cursor-pointer bg-[var(--borderColor)]">
+                </div>
+                <div class="border border-[var(--borderColor)]/40 rounded-xl p-3 flex flex-col gap-2 bg-[var(--cream)]/10" id="indicator-fireplace">
+                  <button id="toggle-fireplace" class="text-xs font-serif font-semibold text-left flex items-center gap-1.5 hover:opacity-85 cursor-pointer">🔥 壁爐柴火</button>
+                  <input type="range" id="vol-fireplace" min="0" max="1" step="0.05" value="0" class="w-full accent-[var(--earth)] h-1 rounded-lg cursor-pointer bg-[var(--borderColor)]">
+                </div>
+                <div class="border border-[var(--borderColor)]/40 rounded-xl p-3 flex flex-col gap-2 bg-[var(--cream)]/10" id="indicator-wind">
+                  <button id="toggle-wind" class="text-xs font-serif font-semibold text-left flex items-center gap-1.5 hover:opacity-85 cursor-pointer">🍃 幽谷微風</button>
+                  <input type="range" id="vol-wind" min="0" max="1" step="0.05" value="0" class="w-full accent-[var(--earth)] h-1 rounded-lg cursor-pointer bg-[var(--borderColor)]">
+                </div>
+              </div>
+              <div class="flex justify-end border-t border-[var(--borderColor)]/40 pt-4 mt-2">
+                <button id="btnHyggeMuteAll" class="px-4 py-1 text-[10px] font-sans border border-[var(--borderColor)] text-[var(--inkSoft)] hover:text-[var(--ink)] rounded-full transition-all cursor-pointer">全部靜音</button>
+              </div>
+            </div>
+
+            <!-- NIKSEN -->
+            <div id="panel-niksen" class="hidden flex flex-col items-center text-center py-2 flex-1">
+              <div id="niksenStepIdle" class="flex-1 flex flex-col items-center">
+                <p class="text-[10px] text-[var(--inkSoft)] leading-relaxed max-w-sm mb-4">兩分鐘的徹底空白：別看手機、別看鍵盤、別滑滑鼠。如果操作過大，挑戰會立刻重置！</p>
+              </div>
+              <div id="niksenStepRunning" class="hidden flex-1 flex flex-col items-center animate-pulse">
+                <div id="niksenTimerText" class="font-display text-4xl font-light tracking-widest text-[var(--sageDeep)] mb-2">120s</div>
+                <p class="text-[10px] text-[var(--inkSoft)] mb-2">請放下所有操作。呼吸、放空、覺察此時時刻。</p>
+                <p class="text-[9px] text-[var(--terracotta)]">⚠️ 偵測到滑鼠或按鍵點擊即會中斷</p>
+              </div>
+              <div id="niksenStepFailed" class="hidden flex-1 flex flex-col items-center animate-fade-in text-[var(--terracotta)]">
+                <div class="text-3xl mb-1.5">🕯️</div>
+                <h4 class="font-serif text-xs font-semibold">挑戰未竟 ⋯ 念頭又起</h4>
+                <p class="text-[10px] text-[var(--inkSoft)] mt-1.5 max-w-sm">沒關係的，大腦天生容易分心。將注意力輕輕拉回，隨時可以再次嘗試。</p>
+              </div>
+              <div id="niksenStepSuccess" class="hidden flex-1 flex flex-col items-center animate-fade-in text-[var(--sageDeep)]">
+                <div class="text-3xl mb-1.5">🪷</div>
+                <h4 class="font-serif text-xs font-semibold">兩分鐘的圓滿淨化</h4>
+                <p class="text-[10px] text-[var(--inkSoft)] mt-1.5 max-w-sm">你成功在喧囂中安頓了自己兩分鐘。這是大腦最深刻的休息。</p>
+              </div>
+              <div class="flex items-center gap-3 mt-4 border-t border-[var(--borderColor)]/40 pt-4 w-full justify-center">
+                <button id="btnNiksenTrigger" class="px-5 py-1.5 text-xs font-sans bg-[var(--earthDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer">開啟兩分鐘放空</button>
+              </div>
+            </div>
+
+            <!-- WALK -->
+            <div id="panel-walk" class="hidden flex flex-col justify-between flex-1">
+              <div id="walkStepConfig" class="flex-1 flex flex-col">
+                <p class="text-[10px] text-[var(--inkSoft)] leading-relaxed mb-4 max-w-lg">「行禪經行」是移動中的靜心。請聽引導步速（提、跨、落）的引導秒數：</p>
+                <div class="flex gap-2 justify-center">
+                  <button id="walkTempo-4" class="px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]">4 秒/步</button>
+                  <button id="walkTempo-5" class="px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]">5 秒/步</button>
+                  <button id="walkTempo-6" class="px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]">6 秒/步</button>
+                  <button id="walkTempo-8" class="px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]">8 秒/步</button>
+                </div>
+              </div>
+              <div id="walkStepRunning" class="hidden flex-1 flex flex-col items-center justify-center py-2 animate-pulse text-center">
+                <div class="text-2xl mb-1.5">🚶</div>
+                <div id="walkRunningPhaseText" class="font-serif text-sm font-semibold text-[var(--sageDeep)]">【提足】 緩緩抬起腳跟</div>
+                <p class="text-[10px] text-[var(--inkSoft)] mt-1 max-w-sm">引導：木魚響起時提足、靜止時跨步、罄響起時平穩踩地。</p>
+              </div>
+              <div class="flex items-center justify-center mt-5 border-t border-[var(--borderColor)]/40 pt-4">
+                <button id="btnWalkTrigger" class="px-5 py-1.5 text-xs font-sans bg-[var(--sageDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer">開始定速引導</button>
+              </div>
+            </div>
+
+            <!-- READ -->
+            <div id="panel-read" class="hidden flex flex-col flex-1">
+              <div class="flex items-center justify-between mb-3 border-b border-[var(--borderColor)]/30 pb-2">
+                <div id="readBookSelectors" class="flex flex-wrap gap-1.5"></div>
+                <span id="readAuthorText" class="text-[9px] font-serif text-[var(--inkSoft)]"></span>
+              </div>
+              <div class="bg-[var(--cream)]/45 border border-[var(--borderColor)]/30 rounded-xl p-4 flex-1 flex items-center justify-center min-h-[100px]">
+                <p id="readBookContent" class="font-serif text-xs text-[var(--ink)] leading-relaxed italic tracking-wide text-center"></p>
+              </div>
+              <p class="text-[9px] font-sans text-[var(--inkSoft)]/60 text-right mt-2">護眼防藍光紙質色調 · 專注沉浸閱讀</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="relative z-10 max-w-7xl w-full mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-[var(--borderColor)]/40 mt-8 text-[11px] text-[var(--inkSoft)] font-serif select-none">
+      <div>慢鐘 · 讓時間溫柔地流淌</div>
+      <div>純淨 · 無廣告 · 離線運作</div>
+    </footer>
+
+    <!-- JAVASCRIPT SYSTEM -->
+    <script>
+      // ════════════════════════════════════════════════════════════════════════
+      //  1. STATIC DATA
+      // ════════════════════════════════════════════════════════════════════════
+      const THEMES = [
+        {
+          id: 'beige',
+          name: '山泥 (Raw Clay)',
+          swatch: '#E8DCC4',
+          vars: {
+            cream: '#F4EFEB', warmWhite: '#FCFBF9', borderColor: '#E6DDD4', clockBorder: '#E6DDD4',
+            earth: '#8C7A6B', earthDeep: '#594C42', ink: '#2B2421', inkSoft: '#6E625D',
+            sage: '#A3B19B', sageLight: '#DCE2D9', sageDeep: '#586751', terracotta: '#C87A53',
+          }
+        },
+        {
+          id: 'matcha',
+          name: '靜苔 (Zen Moss)',
+          swatch: '#8AA382',
+          vars: {
+            cream: '#EDF0EB', warmWhite: '#FAFAFA', borderColor: '#D4DEC2', clockBorder: '#D4DEC2',
+            earth: '#7F876D', earthDeep: '#494E3E', ink: '#1D241A', inkSoft: '#5A6256',
+            sage: '#6E8B62', sageLight: '#CED6C4', sageDeep: '#425838', terracotta: '#D4815B',
+          }
+        },
+        {
+          id: 'ashen',
+          name: '霧灰 (Ashen Shallows)',
+          swatch: '#B8C0C5',
+          vars: {
+            cream: '#EAEFF2', warmWhite: '#F7FAFC', borderColor: '#D1DADC', clockBorder: '#CBD5E1',
+            earth: '#7C8A94', earthDeep: '#4D5860', ink: '#1F2937', inkSoft: '#4B5563',
+            sage: '#8C9A8E', sageLight: '#D3DDD5', sageDeep: '#505E53', terracotta: '#C47355',
+          }
+        },
+        {
+          id: 'charcoal',
+          name: '幽影 (Midnight Slate)',
+          swatch: '#2E3539',
+          vars: {
+            cream: '#1A1C1E', warmWhite: '#242729', borderColor: '#373A40', clockBorder: '#4B5563',
+            earth: '#9CA3AF', earthDeep: '#E5E7EB', ink: '#F9FAFB', inkSoft: '#D1D5DB',
+            sage: '#9EB3C2', sageLight: '#1E293B', sageDeep: '#E2E8F0', terracotta: '#E879F9',
+          }
+        }
+      ];
+
+      const BREATHING_PATTERNS = [
+        { id: 'box', name: '箱式呼吸 (Box Breathing)', inhale: 4, hold1: 4, exhale: 4, hold2: 4, desc: '最經典的能量平衡：吸、留、呼、空各 4 秒。極速平衡副交感神經，喚醒專注。' },
+        { id: 'relax', name: '4-7-8 舒眠 (Relaxation)', inhale: 4, hold1: 7, exhale: 8, hold2: 0, desc: '哈佛專家推薦：吸氣 4 秒、屏息 7 秒、深呼氣 8 秒。如同大腦天然鎮靜劑，釋放深層焦慮。' },
+        { id: 'coherent', name: '諧振呼吸 (Coherent Breathing)', inhale: 5, hold1: 0, exhale: 5, hold2: 0, desc: '生命的和諧律動：吸氣 5 秒、呼氣 5 秒。使心率變異性（HRV）達到和諧共振，安頓紛擾。' }
+      ];
+
+      const QUOTES = [
+        { text: '「若能澄心淨慮，則萬物皆可自得。」', source: '— 蘇軾 · 沉澱之境' },
+        { text: '「手把青秧插滿田，低頭便見水中天。六根清淨方為道，退步原來是向前。」', source: '— 布袋和尚 · 禪行' },
+        { text: '「水滴石穿，非一日之功；澄澈心田，存乎此時此刻。」', source: '— 禪門清規' },
+        { text: '「風來疏竹，風過而竹不留聲；雁渡寒潭，雁去而潭不留影。」', source: '— 菜根譚 · 隨緣' },
+        { text: '「行到水窮處，坐看雲起時。偶然值林叟，談笑無還期。」', source: '— 王維 · 終南別業' },
+        { text: '「心若不動，風又奈何？你若不傷，歲月無恙。」', source: '— 禪宗法語' },
+        { text: '「春有百花秋有月，夏有涼風冬有雪。若無閒事掛心頭，便是人間好時節。」', source: '— 無門慧開' },
+        { text: '「莫言下嶺便無難，賺得行人空喜歡。正入萬山圈子裡，一山放出一山攔。」', source: '— 楊萬里 · 慢渡' },
+        { text: '「萬物靜觀皆自得，四時佳興與人同。道通天地有形外，思入風雲變幻中。」', source: '— 程顥' },
+        { text: '「花未全開月未圓，半留清醒半留禪。此中真意難言喻，且伴慢鐘看自然。」', source: '— 禪意精選' }
+      ];
+
+      const PRACTICES = [
+        { id: 'food', icon: '🍵', name: '正念飲食', sub: 'Mindful Savoring' },
+        { id: 'detox', icon: '🌿', name: '數位排毒', sub: 'Digital Oasis' },
+        { id: 'hygge', icon: '🕯️', name: 'Hygge 環境音', sub: 'Cozy Soundscape' },
+        { id: 'niksen', icon: '☁️', name: 'Niksen 放空', sub: 'Art of Idle' },
+        { id: 'walk', icon: '🚶', name: '行禪經行定速', sub: 'Slow Walking' },
+        { id: 'read', icon: '📖', name: '深度微光閱讀', sub: 'Focus Reading' }
+      ];
+
+      const CLASSIC_BOOKS = {
+        walden: { title: '瓦爾登湖 (Walden)', author: '亨利·戴維·梭羅', content: '「我步入叢林，因為我希望活得深刻，汲取生命的所有精髓。我要生活得從容不迫，把一切非本質的生活內容剔除得乾乾淨淨，以免當我生命走到盡頭時，才發現自己未曾真正活過。」' },
+        zhuangzi: { title: '齊物論 (Zhuangzi)', author: '莊周', content: '「非彼無我，非我無所取。是亦近矣，而不知其所為使。若有真宰，而特不得其朕。可行己信，而不見其形，有情而無形。人籟易聽，地籟難聞，天籟無形，大音希聲。」' },
+        meditations: { title: '沉思錄 (Meditations)', author: '馬可·奧勒留', content: '「傾聽你內心的聲音。那裡有一個清泉，如果你願意挖掘，它將隨時湧出清澈的水。不要為無關緊要的外界雜音干擾，專注於你當下所做的事，帶著仁愛、自由和正義去執行。」' },
+        heart: { title: '般若波羅蜜多心經', author: '玄奘 譯', content: '「照見五蘊皆空，度一切苦厄。舍利子，色不異空，空不異色，色即是空，空即是色，受想行識，亦復如是。是諸法空相，不生不滅，不垢不淨，不增不減。心無罣礙，無罣礙故，遠離顛倒夢想，究竟涅槃。」' }
+      };
+
+      const SAVOR_STEPS = [
+        { title: '🍵 1. 溫熱手捧', desc: '雙手輕捧茶杯。閉上眼睛，感受陶瓷傳遞而來的溫熱，那是太陽與土壤共同孕育的溫度。深呼吸三次。' },
+        { title: '🌸 2. 嗅聞香氣', desc: '慢慢將杯子靠近鼻尖，輕吸一口茶香。茶葉在沸水中甦醒，感受氣流帶著淡淡草木、花果香掠過呼吸道。' },
+        { title: '💧 3. 小口含漱', desc: '輕抿一口茶水，先別吞下。讓溫暖的液體滑過舌尖、舌兩側、舌根，覺察酸苦、甘甜與澀感的徐徐起伏。' },
+        { title: '🌊 4. 溫熱入腹', desc: '缓缓嚥下茶湯。用注意力追隨這道微溫的溪流，穿過食道，注入胃部，擴散到全身，感受自己的存在。' },
+        { title: '🕯️ 5. 感恩謝念', desc: '靜默十秒。在心中默念感謝：感謝栽培茶樹的農夫、澆灌雨水的自然，以及此刻願意安頓身心的自己。' }
+      ];
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  2. WEB AUDIO SYNTHESIZERS
+      // ════════════════════════════════════════════════════════════════════════
+      let audioCtx = null;
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      }
+
+      function playWoodblock() {
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(680, now);
+          osc.frequency.exponentialRampToValueAtTime(320, now + 0.08);
+          gain.gain.setValueAtTime(0.4, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 450;
+          filter.Q.value = 3.5;
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } catch (e) { console.warn('Audio woodblock fail:', e); }
+      }
+
+      function playChime() {
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          const freqs = [880, 1320, 1760];
+          const duration = 1.8;
+          freqs.forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const volume = 0.15 / (idx + 1);
+            gain.gain.setValueAtTime(volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration + 0.1);
+          });
+        } catch (e) { console.warn('Audio chime fail:', e); }
+      }
+
+      function playZenBell(baseFreq = 140, duration = 6) {
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          const ratios = [1.0, 1.22, 2.0, 2.98];
+          ratios.forEach((ratio, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = baseFreq * ratio;
+            lfo.frequency.value = 1.2 + idx * 0.4;
+            lfoGain.gain.value = 1.5;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            const initialVol = 0.25 / (idx + 1);
+            gain.gain.setValueAtTime(initialVol, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / (idx * 0.5 + 1));
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            lfo.start(now);
+            osc.start(now);
+            lfo.stop(now + duration + 0.5);
+            osc.stop(now + duration + 0.5);
+          });
+        } catch (e) { console.warn('Audio zen bell fail:', e); }
+      }
+
+      const activeAmbientSources = {};
+      function startAmbientSound(type, volume) {
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          if (activeAmbientSources[type]) {
+            activeAmbientSources[type].gainNode.gain.linearRampToValueAtTime(volume, now + 0.5);
+            return;
+          }
+          const masterGain = ctx.createGain();
+          masterGain.gain.setValueAtTime(0, now);
+          masterGain.gain.linearRampToValueAtTime(volume, now + 1.5);
+          masterGain.connect(ctx.destination);
+          const nodesToStop = [];
+
+          if (type === 'rain') {
+            const bufferSize = ctx.sampleRate * 2;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+            noiseSource.loop = true;
+            const bandpass = ctx.createBiquadFilter();
+            bandpass.type = 'bandpass';
+            bandpass.frequency.value = 1000;
+            bandpass.Q.value = 0.8;
+            const lowpass = ctx.createBiquadFilter();
+            lowpass.type = 'lowpass';
+            lowpass.frequency.value = 800;
+            noiseSource.connect(bandpass);
+            bandpass.connect(lowpass);
+            lowpass.connect(masterGain);
+            noiseSource.start(now);
+            nodesToStop.push(noiseSource);
+          } else if (type === 'fireplace') {
+            const flameBufferSize = ctx.sampleRate * 2;
+            const flameBuffer = ctx.createBuffer(1, flameBufferSize, ctx.sampleRate);
+            const flameOutput = flameBuffer.getChannelData(0);
+            for (let i = 0; i < flameBufferSize; i++) flameOutput[i] = Math.random() * 2 - 1;
+            const flameSource = ctx.createBufferSource();
+            flameSource.buffer = flameBuffer;
+            flameSource.loop = true;
+            const flameFilter = ctx.createBiquadFilter();
+            flameFilter.type = 'lowpass';
+            flameFilter.frequency.value = 90;
+            const flameGain = ctx.createGain();
+            flameGain.gain.value = 0.8;
+            flameSource.connect(flameFilter);
+            flameFilter.connect(flameGain);
+            flameGain.connect(masterGain);
+            flameSource.start(now);
+            nodesToStop.push(flameSource);
+
+            const clickBufferSize = ctx.sampleRate * 3;
+            const clickBuffer = ctx.createBuffer(1, clickBufferSize, ctx.sampleRate);
+            const clickOutput = clickBuffer.getChannelData(0);
+            for (let i = 0; i < clickBufferSize; i++) {
+              if (Math.random() < 0.00035) {
+                const length = Math.floor(Math.random() * 120 + 20);
+                for (let j = 0; j < length && i + j < clickBufferSize; j++) {
+                  clickOutput[i + j] += (Math.random() * 2 - 1) * Math.exp(-j / 15);
+                }
+              }
+            }
+            const clickSource = ctx.createBufferSource();
+            clickSource.buffer = clickBuffer;
+            clickSource.loop = true;
+            const clickFilter = ctx.createBiquadFilter();
+            clickFilter.type = 'highpass';
+            clickFilter.frequency.value = 1800;
+            clickSource.connect(clickFilter);
+            clickFilter.connect(masterGain);
+            clickSource.start(now);
+            nodesToStop.push(clickSource);
+          } else if (type === 'wind') {
+            const windBufferSize = ctx.sampleRate * 3;
+            const windBuffer = ctx.createBuffer(1, windBufferSize, ctx.sampleRate);
+            const windOutput = windBuffer.getChannelData(0);
+            for (let i = 0; i < windBufferSize; i++) windOutput[i] = Math.random() * 2 - 1;
+            const windSource = ctx.createBufferSource();
+            windSource.buffer = windBuffer;
+            windSource.loop = true;
+            const windFilter = ctx.createBiquadFilter();
+            windFilter.type = 'lowpass';
+            windFilter.frequency.value = 320;
+            windFilter.Q.value = 2.5;
+            const gustLFO = ctx.createOscillator();
+            gustLFO.type = 'sine';
+            gustLFO.frequency.value = 0.08;
+            const gustGain = ctx.createGain();
+            gustGain.gain.value = 180;
+            gustLFO.connect(gustGain);
+            gustGain.connect(windFilter.frequency);
+            windSource.connect(windFilter);
+            windFilter.connect(masterGain);
+            gustLFO.start(now);
+            windSource.start(now);
+            nodesToStop.push(windSource, gustLFO);
+          }
+
+          activeAmbientSources[type] = { nodes: nodesToStop, gainNode: masterGain };
+        } catch (e) { console.warn(`Failed ambient [${type}]:`, e); }
+      }
+
+      function stopAmbientSound(type) {
+        const source = activeAmbientSources[type];
+        if (!source) return;
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          source.gainNode.gain.cancelScheduledValues(now);
+          source.gainNode.gain.setValueAtTime(source.gainNode.gain.value, now);
+          source.gainNode.gain.linearRampToValueAtTime(0, now + 1.2);
+          setTimeout(() => {
+            source.nodes.forEach(node => { try { node.stop(); } catch (_) {} });
+            delete activeAmbientSources[type];
+          }, 1300);
+        } catch (e) { console.warn(`Failed stop [${type}]:`, e); }
+      }
+
+      function stopAllAmbience() {
+        Object.keys(activeAmbientSources).forEach(type => stopAmbientSound(type));
+      }
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  3. GLOBAL STATE
+      // ════════════════════════════════════════════════════════════════════════
+      let activeThemeId = localStorage.getItem('slow_clock_theme_id') || 'beige';
+      let clockMode = 'real';
+
+      let timerDuration = 5;
+      let timeLeft = 5 * 60;
+      let isTimerRunning = false;
+      let timerDone = false;
+      let timerInterval = null;
+
+      let activePatternId = 'box';
+      let isBreathingPlaying = false;
+      let breathingPhase = 'inhale';
+      let breathingSecondsRemaining = 4;
+      let breathingCycleCount = 0;
+      let breathingInterval = null;
+
+      let currentQuoteIndex = 0;
+      let quoteRotationInterval = null;
+
+      let activePracticeId = null;
+      let eatingStep = 0;
+      let selectedBookId = 'walden';
+
+      let detoxRunning = false;
+      let detoxTimeLeft = 10 * 60;
+      let detoxAccumulated = Number(localStorage.getItem('slow_clock_detox_mins') || '0');
+      let detoxInterval = null;
+
+      const soundVolumes = { rain: 0, fireplace: 0, wind: 0 };
+
+      let niksenState = 'idle';
+      let niksenTimeLeft = 120;
+      let niksenInterval = null;
+
+      let metronomeRunning = false;
+      let metronomeTempo = 5;
+      let metronomePhase = 'lift';
+      let metronomeInterval = null;
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  4. SYSTEMS LOGIC
+      // ════════════════════════════════════════════════════════════════════════
+      function applyTheme(id) {
+        const t = THEMES.find(x => x.id === id) || THEMES[0];
+        const root = document.documentElement;
+        
+        Object.entries(t.vars).forEach(([k, v]) => {
+          root.style.setProperty(`--${k}`, v);
+          const hyphenName = `--${k.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+          root.style.setProperty(hyphenName, v);
+        });
+        
+        localStorage.setItem('slow_clock_theme_id', id);
+        activeThemeId = id;
+
+        THEMES.forEach(theme => {
+          const btn = document.getElementById(`tbtn-${theme.id}`);
+          if (btn) {
+            if (theme.id === id) {
+              btn.classList.add('bg-[var(--cream)]', 'border-[var(--earth)]', 'text-[var(--ink)]', 'font-normal', 'shadow-xs');
+              btn.classList.remove('border-transparent', 'text-[var(--inkSoft)]', 'font-light');
+              let ring = btn.querySelector('.theme-ring');
+              if (!ring) {
+                ring = document.createElement('span');
+                ring.className = 'theme-ring absolute -inset-0.5 rounded-full border border-[var(--earth)]/40 pointer-events-none';
+                btn.appendChild(ring);
+              }
+            } else {
+              btn.classList.remove('bg-[var(--cream)]', 'border-[var(--earth)]', 'text-[var(--ink)]', 'font-normal', 'shadow-xs');
+              btn.classList.add('border-transparent', 'text-[var(--inkSoft)]', 'font-light');
+              const ring = btn.querySelector('.theme-ring');
+              if (ring) ring.remove();
+            }
+          }
+        });
+      }
+
+      function initThemeSelector() {
+        const container = document.getElementById('themeBarContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        THEMES.forEach(t => {
+          const btn = document.createElement('button');
+          btn.id = `tbtn-${t.id}`;
+          btn.className = 'group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] md:text-xs transition-all duration-300 cursor-pointer select-none border-transparent text-[var(--inkSoft)] font-light hover:translate-y-[-1px]';
+          btn.innerHTML = `<div class="w-2.5 h-2.5 rounded-full shrink-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]" style="background:${t.swatch}"></div><span class="tracking-wide">${t.name}</span>`;
+          btn.addEventListener('click', () => applyTheme(t.id));
+          container.appendChild(btn);
+        });
+        applyTheme(activeThemeId);
+      }
+
+      function initClockAndTimer() {
+        const tabReal = document.getElementById('tabReal');
+        const tabTimer = document.getElementById('tabTimer');
+        if (tabReal && tabTimer) {
+          tabReal.addEventListener('click', () => setClockMode('real'));
+          tabTimer.addEventListener('click', () => setClockMode('timer'));
+        }
+
+        const presetContainer = document.getElementById('timerPresets');
+        if (presetContainer) {
+          presetContainer.innerHTML = '';
+          [1, 3, 5, 10, 15, 20].forEach(mins => {
+            const btn = document.createElement('button');
+            btn.id = `preset-${mins}`;
+            btn.className = `px-3 py-1 rounded-full text-[10px] md:text-xs font-sans tracking-wide transition-all duration-300 border cursor-pointer ${
+              timerDuration === mins ? 'bg-[var(--earth)]/15 border-[var(--earth)] text-[var(--ink)]' : 'border-[var(--borderColor)] text-[var(--inkSoft)] hover:border-[var(--earth)]'
+            }`;
+            btn.textContent = `${mins}分`;
+            btn.addEventListener('click', () => selectTimerDuration(mins));
+            presetContainer.appendChild(btn);
+          });
+        }
+
+        const btnStartPause = document.getElementById('btnStartPause');
+        const btnReset = document.getElementById('btnReset');
+        if (btnStartPause) btnStartPause.addEventListener('click', () => isTimerRunning ? pauseTimer() : startTimer());
+        if (btnReset) btnReset.addEventListener('click', () => resetTimer());
+
+        updateClockDisplay();
+        setInterval(updateClockDisplay, 1000);
+      }
+
+      function setClockMode(mode) {
+        clockMode = mode;
+        resetTimer();
+        const tabReal = document.getElementById('tabReal');
+        const tabTimer = document.getElementById('tabTimer');
+        const label = document.getElementById('clockLabel');
+        const timerControls = document.getElementById('timerControls');
+
+        if (tabReal && tabTimer) {
+          if (mode === 'real') {
+            tabReal.className = 'flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer bg-[var(--warmWhite)] text-[var(--ink)] font-normal shadow-sm';
+            tabTimer.className = 'flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer text-[var(--inkSoft)] font-light';
+            if (label) label.textContent = '此刻，你在哪裡？';
+            if (timerControls) timerControls.classList.add('hidden');
+          } else {
+            tabTimer.className = 'flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer bg-[var(--warmWhite)] text-[var(--ink)] font-normal shadow-sm';
+            tabReal.className = 'flex-1 text-center py-1.5 rounded-full text-xs transition-all duration-300 cursor-pointer text-[var(--inkSoft)] font-light';
+            if (label) label.textContent = '設定一段純粹的時間';
+            if (timerControls) timerControls.classList.remove('hidden');
+          }
+        }
+        const svgText = document.getElementById('clockSvgText');
+        if (svgText) svgText.textContent = mode === 'real' ? 'slow' : 'zen';
+        updateClockDisplay();
+      }
+
+      function selectTimerDuration(mins) {
+        timerDuration = mins;
+        resetTimer(mins);
+        [1, 3, 5, 10, 15, 20].forEach(m => {
+          const btn = document.getElementById(`preset-${m}`);
+          if (btn) {
+            btn.className = m === mins
+              ? 'px-3 py-1 rounded-full text-[10px] md:text-xs font-sans tracking-wide transition-all duration-300 border cursor-pointer bg-[var(--earth)]/15 border-[var(--earth)] text-[var(--ink)]'
+              : 'px-3 py-1 rounded-full text-[10px] md:text-xs font-sans tracking-wide transition-all duration-300 border cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)] hover:border-[var(--earth)]';
+          }
+        });
+      }
+
+      function startTimer() {
+        playZenBell(140, 6);
+        isTimerRunning = true;
+        timerDone = false;
+        const btn = document.getElementById('btnStartPause');
+        if (btn) {
+          btn.innerHTML = `<svg class="w-4 h-4 fill-current text-[var(--ink)]" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg>`;
+          btn.setAttribute('title', '暫停');
+        }
+        const label = document.getElementById('clockLabel');
+        if (label) label.textContent = '深呼吸，安於當下⋯';
+        const btnReset = document.getElementById('btnReset');
+        if (btnReset) btnReset.classList.remove('hidden');
+        const presets = document.getElementById('timerPresets');
+        if (presets) presets.classList.add('hidden');
+        const banner = document.getElementById('timerDoneBanner');
+        if (banner) banner.classList.add('hidden');
+
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          if (timeLeft > 0) {
+            timeLeft--;
+            updateClockDisplay();
+          } else {
+            isTimerRunning = false;
+            timerDone = true;
+            playZenBell(220, 8);
+            clearInterval(timerInterval);
+            const banner = document.getElementById('timerDoneBanner');
+            if (banner) banner.classList.replace('hidden', 'flex');
+            const btn = document.getElementById('btnStartPause');
+            if (btn) btn.innerHTML = `<svg class="w-4 h-4 fill-current text-[var(--cream)] ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            const presets = document.getElementById('timerPresets');
+            if (presets) presets.classList.remove('hidden');
+          }
+        }, 1000);
+      }
+
+      function pauseTimer() {
+        isTimerRunning = false;
+        if (timerInterval) clearInterval(timerInterval);
+        const btn = document.getElementById('btnStartPause');
+        if (btn) {
+          btn.innerHTML = `<svg class="w-4 h-4 fill-current text-[var(--cream)] ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+          btn.setAttribute('title', '開始靜心');
+        }
+      }
+
+      function resetTimer(duration = timerDuration) {
+        isTimerRunning = false;
+        timerDone = false;
+        timeLeft = duration * 60;
+        if (timerInterval) clearInterval(timerInterval);
+        const btn = document.getElementById('btnStartPause');
+        if (btn) {
+          btn.innerHTML = `<svg class="w-4 h-4 fill-current text-[var(--cream)] ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+          btn.setAttribute('title', '開始靜心');
+        }
+        const btnReset = document.getElementById('btnReset');
+        if (btnReset) btnReset.classList.add('hidden');
+        const presets = document.getElementById('timerPresets');
+        if (presets) presets.classList.remove('hidden');
+        const banner = document.getElementById('timerDoneBanner');
+        if (banner) banner.classList.add('hidden');
+        const label = document.getElementById('clockLabel');
+        if (label && clockMode === 'timer') label.textContent = '設定一段純粹的時間';
+        updateClockDisplay();
+      }
+
+      function updateClockDisplay() {
+        const hrHand = document.getElementById('hourHand');
+        const minHand = document.getElementById('minuteHand');
+        const secHand = document.getElementById('secondHand');
+        const digitalTime = document.getElementById('digitalTime');
+        const digitalDate = document.getElementById('digitalDate');
+        const progressRing = document.getElementById('timerProgressRing');
+
+        let hrAngle = 0, minAngle = 0, secAngle = 0;
+
+        if (clockMode === 'real') {
+          const time = new Date();
+          const h = time.getHours();
+          const m = time.getMinutes();
+          const s = time.getSeconds();
+          hrAngle = ((h % 12) * 30) + (m * 0.5);
+          minAngle = (m * 6) + (s * 0.1);
+          secAngle = s * 6;
+          if (digitalTime) digitalTime.textContent = `${String(h).padStart(2, '0')}：${String(m).padStart(2, '0')}`;
+          if (progressRing) progressRing.style.display = 'none';
+        } else {
+          const totalSecs = timerDuration * 60;
+          const progress = timeLeft / totalSecs;
+          hrAngle = progress * 360;
+          minAngle = (timeLeft / 60) * 360;
+          secAngle = (timeLeft % 60) * 6;
+          const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+          const s = String(timeLeft % 60).padStart(2, '0');
+          if (digitalTime) digitalTime.textContent = `${m}:${s}`;
+          if (progressRing) {
+            progressRing.style.display = 'block';
+            const circumference = 2 * Math.PI * 120;
+            const offset = circumference * (1 - progress);
+            progressRing.setAttribute('stroke-dasharray', `${circumference}`);
+            progressRing.setAttribute('stroke-dashoffset', `${offset}`);
+          }
+        }
+
+        if (hrHand) hrHand.style.transform = `translateX(-50%) rotate(${hrAngle}deg)`;
+        if (minHand) minHand.style.transform = `translateX(-50%) rotate(${minAngle}deg)`;
+        if (secHand) secHand.style.transform = `translateX(-50%) rotate(${secAngle}deg)`;
+
+        if (digitalDate) {
+          const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+          const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+          const d = new Date();
+          digitalDate.textContent = `${d.getFullYear()} · ${months[d.getMonth()]} · 週${weekdays[d.getDay()]}`;
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  5. BREATHING LOGIC
+      // ════════════════════════════════════════════════════════════════════════
+      function initBreathing() {
+        const container = document.getElementById('breathingPatterns');
+        if (!container) return;
+        container.innerHTML = '';
+
+        BREATHING_PATTERNS.forEach(p => {
+          const btn = document.createElement('button');
+          btn.id = `bpattern-${p.id}`;
+          btn.className = `px-3 py-1.5 rounded-full text-[10px] md:text-xs transition-all duration-300 border flex items-center gap-1 cursor-pointer ${
+            p.id === activePatternId ? 'bg-[var(--sageLight)]/20 border-[var(--sage)] text-[var(--sageDeep)] font-normal' : 'bg-[var(--cream)] border-transparent text-[var(--inkSoft)] font-light hover:border-[var(--sage)]/30'
+          }`;
+          btn.innerHTML = `${p.id === activePatternId ? '✓ ' : ''}<span>${p.name.split(' ')[0]}</span>`;
+          btn.addEventListener('click', () => selectBreathingPattern(p.id));
+          container.appendChild(btn);
+        });
+
+        const btnBreathTrigger = document.getElementById('btnBreathTrigger');
+        if (btnBreathTrigger) btnBreathTrigger.addEventListener('click', toggleBreathing);
+        selectBreathingPattern(activePatternId);
+      }
+
+      function selectBreathingPattern(id) {
+        activePatternId = id;
+        isBreathingPlaying = false;
+        breathingPhase = 'inhale';
+        const pattern = BREATHING_PATTERNS.find(p => p.id === id) || BREATHING_PATTERNS[0];
+        breathingSecondsRemaining = pattern.inhale;
+        breathingCycleCount = 0;
+        if (breathingInterval) clearInterval(breathingInterval);
+
+        BREATHING_PATTERNS.forEach(p => {
+          const btn = document.getElementById(`bpattern-${p.id}`);
+          if (btn) {
+            if (p.id === id) {
+              btn.className = 'px-3 py-1.5 rounded-full text-[10px] md:text-xs transition-all duration-300 border flex items-center gap-1 cursor-pointer bg-[var(--sageLight)]/20 border-[var(--sage)] text-[var(--sageDeep)] font-normal';
+              btn.innerHTML = `✓ <span>${p.name.split(' ')[0]}</span>`;
+            } else {
+              btn.className = 'px-3 py-1.5 rounded-full text-[10px] md:text-xs transition-all duration-300 border flex items-center gap-1 cursor-pointer bg-[var(--cream)] border-transparent text-[var(--inkSoft)] font-light hover:border-[var(--sage)]/30';
+              btn.innerHTML = `<span>${p.name.split(' ')[0]}</span>`;
+            }
+          }
+        });
+
+        const desc = document.getElementById('breathingDesc');
+        if (desc) desc.textContent = pattern.desc;
+        updateBreathingDisplay();
+      }
+
+      function toggleBreathing() {
+        isBreathingPlaying = !isBreathingPlaying;
+        const btn = document.getElementById('btnBreathTrigger');
+        if (btn) {
+          if (isBreathingPlaying) {
+            btn.className = 'flex items-center gap-1.5 px-5 py-2 rounded-full text-xs transition-all duration-300 border shadow-xs cursor-pointer bg-[var(--cream)] border-[var(--sage)]/50 text-[var(--sageDeep)] hover:bg-[var(--cream)]/80';
+            btn.innerHTML = `<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>暫停練習</span>`;
+          } else {
+            btn.className = 'flex items-center gap-1.5 px-5 py-2 rounded-full text-xs transition-all duration-300 border shadow-xs cursor-pointer bg-[var(--sageDeep)] text-[var(--cream)] border-transparent hover:opacity-90 hover:scale-[1.02]';
+            btn.innerHTML = `<svg class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>開始呼吸</span>`;
+          }
+        }
+        if (isBreathingPlaying) runBreathingTimer();
+        else {
+          if (breathingInterval) clearInterval(breathingInterval);
+          updateBreathingDisplay();
+        }
+      }
+
+      function runBreathingTimer() {
+        const pattern = BREATHING_PATTERNS.find(p => p.id === activePatternId) || BREATHING_PATTERNS[0];
+        if (breathingInterval) clearInterval(breathingInterval);
+        breathingInterval = setInterval(() => {
+          if (breathingSecondsRemaining > 1) {
+            breathingSecondsRemaining--;
+          } else {
+            let nextPhase = 'inhale';
+            let nextSeconds = 4;
+            if (breathingPhase === 'inhale') {
+              if (pattern.hold1 > 0) { nextPhase = 'hold1'; nextSeconds = pattern.hold1; }
+              else { nextPhase = 'exhale'; nextSeconds = pattern.exhale; }
+            } else if (breathingPhase === 'hold1') {
+              nextPhase = 'exhale'; nextSeconds = pattern.exhale;
+            } else if (breathingPhase === 'exhale') {
+              if (pattern.hold2 > 0) { nextPhase = 'hold2'; nextSeconds = pattern.hold2; }
+              else { nextPhase = 'inhale'; nextSeconds = pattern.inhale; breathingCycleCount++; }
+            } else if (breathingPhase === 'hold2') {
+              nextPhase = 'inhale'; nextSeconds = pattern.inhale; breathingCycleCount++;
+            }
+            breathingPhase = nextPhase;
+            breathingSecondsRemaining = nextSeconds;
+          }
+          updateBreathingDisplay();
+        }, 1000);
+      }
+
+      function updateBreathingDisplay() {
+        const orb = document.getElementById('breathingOrb');
+        const timerText = document.getElementById('breathingOrbTimer');
+        const statusText = document.getElementById('breathingStatusText');
+        const cyclesText = document.getElementById('breathingCycles');
+        const pattern = BREATHING_PATTERNS.find(p => p.id === activePatternId) || BREATHING_PATTERNS[0];
+
+        if (orb) {
+          let scale = 1.0, transitionDuration = 4;
+          if (isBreathingPlaying) {
+            if (breathingPhase === 'inhale' || breathingPhase === 'hold1') {
+              scale = 1.6;
+              transitionDuration = breathingPhase === 'inhale' ? pattern.inhale : pattern.hold1;
+            } else {
+              scale = 1.0;
+              transitionDuration = breathingPhase === 'exhale' ? pattern.exhale : pattern.hold2;
+            }
+          }
+          orb.style.transition = `transform ${transitionDuration}s ease-in-out`;
+          orb.style.transform = `scale(${scale})`;
+        }
+
+        if (timerText) timerText.textContent = isBreathingPlaying ? `${breathingSecondsRemaining}s` : '';
+        if (statusText) {
+          if (!isBreathingPlaying) statusText.textContent = '點擊下方開始，跟隨氣息起伏';
+          else {
+            switch (breathingPhase) {
+              case 'inhale': statusText.textContent = '緩緩吸氣 ⋯ 吸入寧靜'; break;
+              case 'hold1': statusText.textContent = '靜止屏息 ⋯ 沉澱心神'; break;
+              case 'exhale': statusText.textContent = '輕輕呼氣 ⋯ 釋放壓力和緊繃'; break;
+              case 'hold2': statusText.textContent = '放空留息 ⋯ 享受空無'; break;
+            }
+          }
+        }
+
+        if (cyclesText) {
+          if (isBreathingPlaying && breathingCycleCount > 0) {
+            cyclesText.textContent = `已完成 ${breathingCycleCount} 次循環`;
+            cyclesText.classList.remove('hidden');
+          } else cyclesText.classList.add('hidden');
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  6. ZEN QUOTES & THOUGHTS
+      // ════════════════════════════════════════════════════════════════════════
+      function initQuotes() {
+        const dotsContainer = document.getElementById('quoteDots');
+        if (dotsContainer) {
+          dotsContainer.innerHTML = '';
+          QUOTES.forEach((_, index) => {
+            const dot = document.createElement('button');
+            dot.id = `qdot-${index}`;
+            dot.className = `w-1.5 h-1.5 rounded-full transition-all duration-300 cursor-pointer ${index === currentQuoteIndex ? 'bg-[var(--earth)] scale-125' : 'bg-[var(--earth)]/25 hover:bg-[var(--earth)]/55'}`;
+            dot.addEventListener('click', () => setQuote(index));
+            dotsContainer.appendChild(dot);
+          });
+        }
+        const textarea = document.getElementById('thoughtInput');
+        const btnRelease = document.getElementById('btnRelease');
+        if (textarea && btnRelease) {
+          textarea.addEventListener('input', () => btnRelease.disabled = !textarea.value.trim());
+        }
+        const thoughtForm = document.getElementById('thoughtForm');
+        if (thoughtForm) thoughtForm.addEventListener('submit', (e) => { e.preventDefault(); handleThoughtRelease(); });
+
+        const btnWriteAnother = document.getElementById('btnWriteAnother');
+        if (btnWriteAnother) {
+          btnWriteAnother.addEventListener('click', () => {
+            document.getElementById('scratchpadInputStep').classList.remove('hidden');
+            document.getElementById('scratchpadInputButtons').classList.remove('hidden');
+            document.getElementById('scratchpadReleasedStep').classList.add('hidden');
+            if (textarea) { textarea.value = ''; btnRelease.disabled = true; }
+          });
+        }
+        setQuote(0);
+        if (quoteRotationInterval) clearInterval(quoteRotationInterval);
+        quoteRotationInterval = setInterval(() => setQuote((currentQuoteIndex + 1) % QUOTES.length), 10000);
+      }
+
+      function setQuote(index) {
+        currentQuoteIndex = index;
+        const qText = document.getElementById('quoteText');
+        const qSource = document.getElementById('quoteSource');
+        if (qText && qSource) {
+          qText.style.opacity = '0';
+          qSource.style.opacity = '0';
+          setTimeout(() => {
+            qText.textContent = QUOTES[index].text;
+            qSource.textContent = QUOTES[index].source;
+            qText.style.opacity = '1';
+            qSource.style.opacity = '1';
+          }, 300);
+        }
+        QUOTES.forEach((_, idx) => {
+          const dot = document.getElementById(`qdot-${idx}`);
+          if (dot) dot.className = idx === index ? 'w-1.5 h-1.5 rounded-full transition-all duration-300 cursor-pointer bg-[var(--earth)] scale-125' : 'w-1.5 h-1.5 rounded-full transition-all duration-300 cursor-pointer bg-[var(--earth)]/25 hover:bg-[var(--earth)]/55';
+        });
+      }
+
+      function handleThoughtRelease() {
+        const textarea = document.getElementById('thoughtInput');
+        if (!textarea || !textarea.value.trim()) return;
+        document.getElementById('scratchpadInputStep').classList.add('hidden');
+        document.getElementById('scratchpadInputButtons').classList.add('hidden');
+        document.getElementById('scratchpadReleasingStep').classList.remove('hidden');
+
+        // Particle effect
+        for (let i = 0; i < 8; i++) {
+          const b = document.createElement('div');
+          b.className = 'fixed rounded-full pointer-events-none z-[9999] border border-[var(--earth)]/35 bg-[var(--earth)]/10';
+          const size = Math.random() * 20 + 8;
+          b.style.width = `${size}px`;
+          b.style.height = `${size}px`;
+          b.style.left = `${Math.random() * 40 + 30}%`;
+          b.style.bottom = '10%';
+          document.body.appendChild(b);
+          b.animate([{ transform: 'translateY(0) scale(1)', opacity: 0.6 }, { transform: `translateY(-60vh) translateX(${Math.random() * 80 - 40}px) scale(0.3)`, opacity: 0 }], { duration: Math.random() * 1500 + 1000, easing: 'ease-out' }).onfinish = () => b.remove();
+        }
+
+        setTimeout(() => {
+          document.getElementById('scratchpadReleasingStep').classList.add('hidden');
+          document.getElementById('scratchpadReleasedStep').classList.remove('hidden');
+        }, 2500);
+      }
+
+      // ════════════════════════════════════════════════════════════════════════
+      //  7. SLOW LIVING PRACTICES BENTO
+      // ════════════════════════════════════════════════════════════════════════
+      function initSlowPractices() {
+        const grid = document.getElementById('practicesGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        PRACTICES.forEach(p => {
+          const btn = document.createElement('button');
+          btn.className = 'flex flex-col items-center justify-center text-center bg-[var(--cream)] border border-[var(--clockBorder)] rounded-2xl p-5 hover:translate-y-[-3px] hover:shadow-md transition-all duration-300 cursor-pointer text-left select-none';
+          btn.innerHTML = `<span class="text-2xl mb-2.5 block">${p.icon}</span><div class="text-xs text-[var(--ink)] font-normal tracking-wide">${p.name}</div><div class="text-[10px] font-display italic text-[var(--earthDeep)] mt-0.5">${p.sub}</div>`;
+          btn.addEventListener('click', () => { playWoodblock(); openPractice(p.id); });
+          grid.appendChild(btn);
+        });
+
+        const btnBackPractice = document.getElementById('btnBackPractice');
+        if (btnBackPractice) btnBackPractice.addEventListener('click', () => { playWoodblock(); closePractice(); });
+      }
+
+      function openPractice(id) {
+        activePracticeId = id;
+        document.getElementById('practicesGrid').classList.add('hidden');
+        document.getElementById('practiceDetailBoard').classList.remove('hidden');
+        document.getElementById('btnBackPractice').classList.remove('hidden');
+
+        ['panel-food', 'panel-detox', 'panel-hygge', 'panel-niksen', 'panel-walk', 'panel-read'].forEach(p => {
+          const el = document.getElementById(p);
+          if (el) el.classList.add('hidden');
+        });
+
+        const activePanel = document.getElementById(`panel-${id}`);
+        if (activePanel) activePanel.classList.remove('hidden');
+
+        if (id === 'food') { eatingStep = 0; renderEatingStep(); }
+        else if (id === 'detox') { resetDetoxTimer(); }
+        else if (id === 'hygge') { initHyggeSoundboard(); }
+        else if (id === 'niksen') { resetNiksen(); }
+        else if (id === 'walk') { resetMetronome(); }
+        else if (id === 'read') { initBookReading(); }
+      }
+
+      function closePractice() {
+        if (activePracticeId === 'hygge') {
+          stopAllAmbience();
+          ['rain', 'fireplace', 'wind'].forEach(snd => {
+            soundVolumes[snd] = 0;
+            const slider = document.getElementById(`vol-${snd}`);
+            if (slider) slider.value = '0';
+            updateSoundboardIndicator(snd, 0);
+          });
+        }
+        if (activePracticeId === 'walk') stopMetronome();
+        if (activePracticeId === 'detox') stopDetox();
+
+        activePracticeId = null;
+        document.getElementById('practicesGrid').classList.remove('hidden');
+        document.getElementById('practiceDetailBoard').classList.add('hidden');
+        document.getElementById('btnBackPractice').classList.add('hidden');
+      }
+
+      function renderEatingStep() {
+        const step = SAVOR_STEPS[eatingStep];
+        document.getElementById('eatingStepTitle').textContent = step.title;
+        document.getElementById('eatingStepDesc').textContent = step.desc;
+        document.getElementById('btnEatingPrev').disabled = eatingStep === 0;
+        document.getElementById('btnEatingNext').textContent = eatingStep < SAVOR_STEPS.length - 1 ? '下一步' : '儀式圓滿';
+      }
+
+      document.getElementById('btnEatingPrev').addEventListener('click', () => { if (eatingStep > 0) { eatingStep--; renderEatingStep(); } });
+      document.getElementById('btnEatingNext').addEventListener('click', () => {
+        if (eatingStep < SAVOR_STEPS.length - 1) { playWoodblock(); eatingStep++; renderEatingStep(); }
+        else { playZenBell(180, 8); closePractice(); }
+      });
+
+      function resetDetoxTimer() {
+        detoxRunning = false;
+        detoxTimeLeft = 10 * 60;
+        if (detoxInterval) clearInterval(detoxInterval);
+        updateDetoxDisplay();
+      }
+
+      function startDetox() {
+        playChime();
+        detoxRunning = true;
+        updateDetoxDisplay();
+        detoxInterval = setInterval(() => {
+          if (detoxTimeLeft > 0) { detoxTimeLeft--; updateDetoxDisplay(); }
+          else {
+            detoxRunning = false;
+            detoxAccumulated += 10;
+            localStorage.setItem('slow_clock_detox_mins', String(detoxAccumulated));
+            playZenBell(260, 6);
+            clearInterval(detoxInterval);
+            updateDetoxDisplay();
+          }
+        }, 1000);
+      }
+
+      function stopDetox() {
+        detoxRunning = false;
+        if (detoxInterval) clearInterval(detoxInterval);
+        updateDetoxDisplay();
+      }
+
+      function updateDetoxDisplay() {
+        const m = String(Math.floor(detoxTimeLeft / 60)).padStart(2, '0');
+        const s = String(detoxTimeLeft % 60).padStart(2, '0');
+        document.getElementById('detoxTimerText').textContent = `${m}:${s}`;
+        document.getElementById('detoxAccumulated').textContent = String(detoxAccumulated);
+        const btn = document.getElementById('btnDetoxTrigger');
+        const pulsing = document.getElementById('detoxPulsingText');
+        if (btn) {
+          if (detoxRunning) {
+            btn.textContent = '中止排毒';
+            btn.className = 'px-5 py-1.5 text-xs font-sans border border-[var(--terracotta)] text-[var(--terracotta)] hover:bg-[var(--terracotta)]/5 rounded-full cursor-pointer';
+            if (pulsing) pulsing.classList.remove('hidden');
+          } else {
+            btn.textContent = '開啟 10 分鐘排毒';
+            btn.className = 'px-5 py-1.5 text-xs font-sans bg-[var(--sageDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer';
+            if (pulsing) pulsing.classList.add('hidden');
+          }
+        }
+      }
+
+      document.getElementById('btnDetoxTrigger').addEventListener('click', () => detoxRunning ? stopDetox() : startDetox());
+
+      function initHyggeSoundboard() {
+        ['rain', 'fireplace', 'wind'].forEach(snd => {
+          const btn = document.getElementById(`toggle-${snd}`);
+          const slider = document.getElementById(`vol-${snd}`);
+          if (btn && !btn.hasListener) {
+            btn.addEventListener('click', () => {
+              const val = soundVolumes[snd] > 0 ? 0 : 0.5;
+              soundVolumes[snd] = val;
+              if (slider) slider.value = String(val);
+              updateSoundboardIndicator(snd, val);
+              if (val > 0) startAmbientSound(snd, val); else stopAmbientSound(snd);
+            });
+            btn.hasListener = true;
+          }
+          if (slider && !slider.hasListener) {
+            slider.addEventListener('input', () => {
+              const val = parseFloat(slider.value);
+              soundVolumes[snd] = val;
+              updateSoundboardIndicator(snd, val);
+              if (val > 0) startAmbientSound(snd, val); else stopAmbientSound(snd);
+            });
+            slider.hasListener = true;
+          }
+        });
+      }
+
+      function updateSoundboardIndicator(snd, val) {
+        const el = document.getElementById(`indicator-${snd}`);
+        if (el) {
+          if (val > 0) { el.classList.add('border-[var(--earth)]', 'bg-[var(--earth)]/10', 'text-[var(--ink)]'); el.classList.remove('border-[var(--borderColor)]/40'); }
+          else { el.classList.remove('border-[var(--earth)]', 'bg-[var(--earth)]/10', 'text-[var(--ink)]'); el.classList.add('border-[var(--borderColor)]/40'); }
+        }
+      }
+
+      document.getElementById('btnHyggeMuteAll').addEventListener('click', () => {
+        stopAllAmbience();
+        ['rain', 'fireplace', 'wind'].forEach(snd => {
+          soundVolumes[snd] = 0;
+          const slider = document.getElementById(`vol-${snd}`);
+          if (slider) slider.value = '0';
+          updateSoundboardIndicator(snd, 0);
+        });
+      });
+
+      function startNiksen() {
+        playChime();
+        niksenTimeLeft = 120;
+        niksenState = 'running';
+        updateNiksenDisplay();
+        window.addEventListener('keydown', handleNiksenTriggerFail);
+        window.addEventListener('mousemove', handleNiksenMouseMove);
+        window.addEventListener('touchstart', handleNiksenTriggerFail);
+
+        if (niksenInterval) clearInterval(niksenInterval);
+        niksenInterval = setInterval(() => {
+          if (niksenTimeLeft > 0) { niksenTimeLeft--; updateNiksenDisplay(); }
+          else {
+            niksenState = 'success';
+            playZenBell(180, 8);
+            cleanNiksenListeners();
+            updateNiksenDisplay();
+          }
+        }, 1000);
+      }
+
+      function resetNiksen() {
+        niksenState = 'idle';
+        niksenTimeLeft = 120;
+        cleanNiksenListeners();
+        updateNiksenDisplay();
+      }
+
+      function handleNiksenTriggerFail() {
+        if (niksenState === 'running') { niksenState = 'failed'; cleanNiksenListeners(); updateNiksenDisplay(); }
+      }
+
+      function handleNiksenMouseMove(e) {
+        if (Math.abs(e.movementX) > 4 || Math.abs(e.movementY) > 4) handleNiksenTriggerFail();
+      }
+
+      function cleanNiksenListeners() {
+        if (niksenInterval) clearInterval(niksenInterval);
+        window.removeEventListener('keydown', handleNiksenTriggerFail);
+        window.removeEventListener('mousemove', handleNiksenMouseMove);
+        window.removeEventListener('touchstart', handleNiksenTriggerFail);
+      }
+
+      function updateNiksenDisplay() {
+        document.getElementById('niksenStepIdle').classList.add('hidden');
+        document.getElementById('niksenStepRunning').classList.add('hidden');
+        document.getElementById('niksenStepFailed').classList.add('hidden');
+        document.getElementById('niksenStepSuccess').classList.add('hidden');
+
+        document.getElementById('niksenTimerText').textContent = `${niksenTimeLeft}s`;
+        const btn = document.getElementById('btnNiksenTrigger');
+
+        if (niksenState === 'running') {
+          btn.textContent = '放棄挑戰';
+          btn.className = 'px-4 py-1 text-xs font-sans border border-[var(--borderColor)] text-[var(--inkSoft)] hover:text-[var(--ink)] rounded-full cursor-pointer';
+          document.getElementById('niksenStepRunning').classList.remove('hidden');
+        } else {
+          btn.textContent = niksenState === 'failed' ? '再次嘗試' : '開啟兩分鐘放空';
+          btn.className = 'px-5 py-1.5 text-xs font-sans bg-[var(--earthDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer';
+          if (niksenState === 'idle') document.getElementById('niksenStepIdle').classList.remove('hidden');
+          else if (niksenState === 'failed') document.getElementById('niksenStepFailed').classList.remove('hidden');
+          else if (niksenState === 'success') document.getElementById('niksenStepSuccess').classList.remove('hidden');
+        }
+      }
+
+      document.getElementById('btnNiksenTrigger').addEventListener('click', () => niksenState === 'running' ? resetNiksen() : startNiksen());
+
+      function startMetronome() {
+        playChime();
+        metronomeRunning = true;
+        updateMetronomeDisplay();
+        let tick = 0;
+        if (metronomeInterval) clearInterval(metronomeInterval);
+        metronomeInterval = setInterval(() => {
+          tick++;
+          const stepCycle = tick % 3;
+          if (stepCycle === 0) { metronomePhase = 'lift'; playWoodblock(); }
+          else if (stepCycle === 1) { metronomePhase = 'move'; }
+          else { metronomePhase = 'touch'; playChime(); }
+          updateMetronomeDisplay();
+        }, (metronomeTempo / 3) * 1000);
+      }
+
+      function stopMetronome() {
+        metronomeRunning = false;
+        if (metronomeInterval) clearInterval(metronomeInterval);
+        updateMetronomeDisplay();
+      }
+
+      function resetMetronome() {
+        metronomeRunning = false;
+        metronomePhase = 'lift';
+        if (metronomeInterval) clearInterval(metronomeInterval);
+        updateMetronomeDisplay();
+      }
+
+      function updateMetronomeDisplay() {
+        const conf = document.getElementById('walkStepConfig');
+        const run = document.getElementById('walkStepRunning');
+        const txt = document.getElementById('walkRunningPhaseText');
+        const btn = document.getElementById('btnWalkTrigger');
+
+        if (metronomeRunning) {
+          conf.classList.add('hidden');
+          run.classList.remove('hidden');
+          let label = '';
+          if (metronomePhase === 'lift') label = '【提足】 緩緩抬起腳跟';
+          else if (metronomePhase === 'move') label = '【跨步】 腳步輕緩平移';
+          else label = '【落足】 腳掌安穩觸地';
+          txt.textContent = label;
+          btn.textContent = '停止定速';
+          btn.className = 'px-5 py-1.5 text-xs font-sans border border-[var(--terracotta)] text-[var(--terracotta)] hover:bg-[var(--terracotta)]/5 rounded-full cursor-pointer';
+        } else {
+          conf.classList.remove('hidden');
+          run.classList.add('hidden');
+          btn.textContent = '開始定速引導';
+          btn.className = 'px-5 py-1.5 text-xs font-sans bg-[var(--sageDeep)] text-[var(--cream)] rounded-full hover:opacity-90 cursor-pointer';
+          [4, 5, 6, 8].forEach(sec => {
+            const el = document.getElementById(`walkTempo-${sec}`);
+            if (el) el.className = metronomeTempo === sec ? 'px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--earth)] bg-[var(--earth)]/15 text-[var(--ink)] font-normal' : 'px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]';
+          });
+        }
+      }
+
+      [4, 5, 6, 8].forEach(sec => {
+        document.getElementById(`walkTempo-${sec}`).addEventListener('click', () => { metronomeTempo = sec; updateMetronomeDisplay(); });
+      });
+      document.getElementById('btnWalkTrigger').addEventListener('click', () => metronomeRunning ? stopMetronome() : startMetronome());
+
+      function initBookReading() {
+        const container = document.getElementById('readBookSelectors');
+        if (!container) return;
+        container.innerHTML = '';
+        Object.keys(CLASSIC_BOOKS).forEach(key => {
+          const btn = document.createElement('button');
+          btn.id = `book-${key}`;
+          btn.className = `px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer ${selectedBookId === key ? 'border-[var(--earth)] bg-[var(--earth)]/15 text-[var(--ink)] font-normal' : 'border-[var(--borderColor)] text-[var(--inkSoft)]'}`;
+          btn.textContent = CLASSIC_BOOKS[key].title.split(' ')[0];
+          btn.addEventListener('click', () => { playWoodblock(); selectBook(key); });
+          container.appendChild(btn);
+        });
+        selectBook(selectedBookId);
+      }
+
+      function selectBook(key) {
+        selectedBookId = key;
+        const book = CLASSIC_BOOKS[key];
+        document.getElementById('readAuthorText').textContent = book.author;
+        document.getElementById('readBookContent').textContent = book.content;
+        Object.keys(CLASSIC_BOOKS).forEach(k => {
+          const btn = document.getElementById(`book-${k}`);
+          if (btn) btn.className = k === key ? 'px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--earth)] bg-[var(--earth)]/15 text-[var(--ink)] font-normal' : 'px-3 py-1 text-[10px] font-sans border rounded-full cursor-pointer border-[var(--borderColor)] text-[var(--inkSoft)]';
+        });
+      }
+
+      function initSeason() {
+        const m = new Date().getMonth() + 1;
+        let label = '', color = '';
+        if (m >= 3 && m <= 5) { label = '春 · Spring'; color = 'var(--sageLight)'; }
+        else if (m >= 6 && m <= 8) { label = '夏 · Summer'; color = 'var(--sageDeep)'; }
+        else if (m >= 9 && m <= 11) { label = '秋 · Autumn'; color = 'var(--earth)'; }
+        else { label = '冬 · Winter'; color = 'var(--earthDeep)'; }
+        const pip = document.getElementById('seasonPip');
+        if (pip) pip.style.backgroundColor = color;
+        const text = document.getElementById('seasonLabel');
+        if (text) text.textContent = label;
+      }
+
+      function initAll() {
+        initThemeSelector();
+        initClockAndTimer();
+        initBreathing();
+        initQuotes();
+        initSlowPractices();
+        initSeason();
+      }
+
+      if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', initAll);
+      else initAll();
+    </script>
+  </body>
+</html>

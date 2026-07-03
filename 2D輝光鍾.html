@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2D 輝光鐘 (Nixie Clock)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;650;750&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    :root {
+      color-scheme: dark;
+      --panel: rgba(16, 18, 22, 0.9);
+      --line: rgba(255, 255, 255, 0.1);
+      --ink: #f6f0e6;
+      --muted: #a49e94;
+      --accent: #ff7a2e;
+      --focus: #38bdf8;
+      --shadow: rgba(0, 0, 0, 0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100vh;
+      background: 
+        radial-gradient(circle at 50% -12%, rgba(255, 110, 40, 0.08), transparent 50rem),
+        linear-gradient(180deg, #181a1f 0%, #07080a 65%, #030405 100%);
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 4vw, 40px);
+    }
+
+    .app {
+      width: min(1360px, 100%);
+      display: grid;
+      gap: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 48px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff8f0;
+      font-weight: 750;
+      font-size: clamp(20px, 2.5vw, 28px);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      width: 14px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #fffcf5, #ff8a28 45%, #e12711);
+      box-shadow: 0 0 16px #ff6d26, 0 0 32px rgba(255, 93, 34, 0.7);
+      flex: 0 0 auto;
+    }
+
+    .icon-button,
+    .text-button {
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: rgba(20, 22, 28, 0.6);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+    }
+
+    .text-button {
+      min-height: 42px;
+      padding: 0 20px;
+      border-radius: 12px;
+      font-weight: 650;
+    }
+
+    .icon-button:hover,
+    .text-button:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 122, 46, 0.5);
+      background: rgba(30, 24, 20, 0.85);
+      box-shadow: 0 12px 40px rgba(255, 122, 46, 0.12), 0 4px 12px var(--shadow);
+    }
+
+    .icon-button:active,
+    .text-button:active {
+      transform: translateY(0);
+    }
+
+    .icon-button:focus-visible,
+    .text-button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      min-height: clamp(460px, 55vw, 680px);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        radial-gradient(circle at 50% 12%, rgba(255, 110, 40, 0.05), transparent 45%),
+        #040507;
+      box-shadow: 
+        0 40px 90px rgba(0, 0, 0, 0.75), 
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      isolation: isolate;
+    }
+
+    .stage canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #threeLayer {
+      z-index: 0;
+    }
+
+    #clockCanvas {
+      z-index: 1;
+    }
+
+    .stage-vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.45), transparent 15%, transparent 85%, rgba(0, 0, 0, 0.45)),
+        radial-gradient(circle at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.4) 100%);
+      mix-blend-mode: multiply;
+    }
+
+    dialog {
+      width: min(1040px, calc(100vw - 32px));
+      max-height: min(860px, calc(100vh - 40px));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 0;
+      color: var(--ink);
+      background: rgba(12, 14, 18, 0.96);
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.85);
+      overflow: hidden;
+      margin: auto;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+    }
+
+    .settings-head {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .settings-title {
+      font-weight: 750;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+      color: #fff8f0;
+    }
+
+    .settings-body {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+      gap: 20px;
+      overflow: auto;
+      max-height: calc(100vh - 130px);
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.025);
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin-bottom: 16px;
+      font-size: 16px;
+      font-weight: 650;
+      color: #fff3e3;
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .color-cell {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      align-items: center;
+      text-align: center;
+    }
+
+    .color-cell span {
+      width: 100%;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    input[type="color"] {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .range-list {
+      display: grid;
+      gap: 16px;
+    }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 50px;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+
+    .range-value {
+      text-align: right;
+      color: #fff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+    }
+
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 860px) {
+      body {
+        padding: 16px;
+      }
+
+      .stage {
+        min-height: 480px;
+      }
+
+      .settings-body {
+        grid-template-columns: 1fr;
+      }
+
+      .color-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .range-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .range-value {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .color-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand" aria-label="Glow Tube Clock">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Glow Tube Clock</span>
+      </div>
+      <button class="icon-button" id="openSettings" type="button" aria-label="參數設定" title="參數設定">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
+          <path fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06A1.7 1.7 0 0 0 15 19.43a1.7 1.7 0 0 0-1 .25 1.7 1.7 0 0 0-.82 1.46V21a2.05 2.05 0 1 1-4.1 0v-.09a1.7 1.7 0 0 0-.82-1.46 1.7 1.7 0 0 0-1-.25 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06A1.7 1.7 0 0 0 2.57 15a1.7 1.7 0 0 0-.25-1A1.7 1.7 0 0 0 .86 13.2H.8a2.05 2.05 0 1 1 0-4.1h.09a1.7 1.7 0 0 0 1.46-.82 1.7 1.7 0 0 0 .25-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06A1.7 1.7 0 0 0 7 2.57a1.7 1.7 0 0 0 1-.25A1.7 1.7 0 0 0 8.8.86V.8a2.05 2.05 0 1 1 4.1 0v.09a1.7 1.7 0 0 0 .82 1.46 1.7 1.7 0 0 0 1 .25 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06A1.7 1.7 0 0 0 19.43 7c0 .34.09.69.25 1a1.7 1.7 0 0 0 1.46.82H21a2.05 2.05 0 1 1 0 4.1h-.09a1.7 1.7 0 0 0-1.46.82c-.16.31-.25.66-.25 1Z" transform="translate(1.2 1.2) scale(.9)"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="stage" aria-label="輝光數字時鐘">
+      <canvas id="threeLayer" aria-hidden="true"></canvas>
+      <canvas id="clockCanvas"></canvas>
+      <div class="stage-vignette" aria-hidden="true"></div>
+    </section>
+  </main>
+
+  <dialog id="settingsDialog">
+    <form method="dialog">
+      <div class="settings-head">
+        <div class="settings-title">參數設定</div>
+        <button class="icon-button" type="submit" aria-label="關閉" title="關閉">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <section class="panel">
+          <h2>16 色獨立設定</h2>
+          <div class="color-grid" id="colorControls"></div>
+        </section>
+        <div class="range-list">
+          <section class="panel">
+            <h2>輝光細管</h2>
+            <div class="range-list" id="glowControls"></div>
+          </section>
+          <section class="panel">
+            <h2>折光桌面</h2>
+            <div class="range-list" id="deskControls"></div>
+          </section>
+          <div class="settings-actions">
+            <button class="text-button" id="resetSettings" type="button">重設</button>
+            <button class="text-button" type="submit">完成</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
+  <script>
+    (() => {
+      const storageKey = "glowTubeClock.settings.v2";
+      const clockCanvas = document.getElementById("clockCanvas");
+      const ctx = clockCanvas.getContext("2d", { alpha: true });
+      const threeCanvas = document.getElementById("threeLayer");
+      const settingsDialog = document.getElementById("settingsDialog");
+      const colorControls = document.getElementById("colorControls");
+      const glowControls = document.getElementById("glowControls");
+      const deskControls = document.getElementById("deskControls");
+
+      const defaultState = {
+        digitColors: ["#ff6a25", "#ff2b22", "#ff9348", "#ffcc47", "#ff7032", "#ff5528"],
+        colonColors: ["#ff8d31", "#ffd15a"],
+        baseColors: ["#ff4fe2", "#ff1010", "#00d9ff", "#16d8ff", "#f5e645", "#7f63ff", "#3e7dff", "#00ff70"],
+        glow: {
+          halo: 32,
+          tubeWidth: 5.4,
+          idle: 0.17,
+          bloom: 1.25,
+          pulse: 0.58,
+          flicker: 0.22,
+          ambient: 0.62
+        },
+        desk: {
+          intensity: 0.82,
+          angle: -17,
+          length: 0.88,
+          spread: 0.74,
+          refraction: 0.56
+        }
+      };
+
+      let state = loadState();
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let three = null;
+      let webgl = null;
+      let timeText = "12:34:56";
+      let lastSecond = -1;
+      window.__glowClockRenderMode = "canvas";
+
+      const chars = ["d0", "d1", "c0", "d2", "d3", "c1", "d4", "d5"];
+      const colorLabels = [
+        ["digitColors", 0, "數字 1"],
+        ["digitColors", 1, "數字 2"],
+        ["digitColors", 2, "數字 3"],
+        ["digitColors", 3, "數字 4"],
+        ["digitColors", 4, "數字 5"],
+        ["digitColors", 5, "數字 6"],
+        ["colonColors", 0, "分隔 1"],
+        ["colonColors", 1, "分隔 2"],
+        ["baseColors", 0, "底座 1"],
+        ["baseColors", 1, "底座 2"],
+        ["baseColors", 2, "底座 3"],
+        ["baseColors", 3, "底座 4"],
+        ["baseColors", 4, "底座 5"],
+        ["baseColors", 5, "底座 6"],
+        ["baseColors", 6, "底座 7"],
+        ["baseColors", 7, "底座 8"]
+      ];
+
+      const glowRanges = [
+        ["halo", "光暈半徑", 4, 80, 1],
+        ["tubeWidth", "細管寬度", 2, 12, 0.1],
+        ["idle", "未亮管亮度", 0.03, 0.42, 0.01],
+        ["bloom", "亮管強度", 0.35, 2.5, 0.01],
+        ["pulse", "呼吸速度", 0, 2.2, 0.01],
+        ["flicker", "微閃幅度", 0, 0.7, 0.01],
+        ["ambient", "環境散光", 0, 1, 0.01]
+      ];
+
+      const deskRanges = [
+        ["intensity", "反光強度", 0, 1.5, 0.01],
+        ["angle", "反光角度", -45, 45, 1],
+        ["length", "反光長度", 0.2, 1.4, 0.01],
+        ["spread", "彩光展寬", 0.15, 1.2, 0.01],
+        ["refraction", "折光擾動", 0, 1, 0.01]
+      ];
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+          return merge(defaultState, saved || {});
+        } catch (error) {
+          return structuredClone(defaultState);
+        }
+      }
+
+      function merge(base, patch) {
+        const next = Array.isArray(base) ? [...base] : { ...base };
+        Object.keys(patch || {}).forEach((key) => {
+          if (patch[key] && typeof patch[key] === "object" && !Array.isArray(patch[key]) && base[key]) {
+            next[key] = merge(base[key], patch[key]);
+          } else if (Array.isArray(base[key]) && Array.isArray(patch[key])) {
+            next[key] = patch[key].slice(0, base[key].length).concat(base[key].slice(patch[key].length));
+          } else if (patch[key] !== undefined) {
+            next[key] = patch[key];
+          }
+        });
+        return next;
+      }
+
+      function saveState() {
+        localStorage.setItem(storageKey, JSON.stringify(state));
+      }
+
+      function buildControls() {
+        colorControls.textContent = "";
+        colorLabels.forEach(([group, index, label]) => {
+          const item = document.createElement("label");
+          item.className = "color-cell";
+          const input = document.createElement("input");
+          input.type = "color";
+          input.value = state[group][index];
+          input.addEventListener("input", () => {
+            state[group][index] = input.value;
+            saveState();
+            updateThreeUniforms();
+          });
+          const span = document.createElement("span");
+          span.textContent = label;
+          item.append(input, span);
+          colorControls.append(item);
+        });
+
+        buildRangeControls(glowControls, glowRanges, "glow");
+        buildRangeControls(deskControls, deskRanges, "desk");
+      }
+
+      function buildRangeControls(root, ranges, group) {
+        root.textContent = "";
+        ranges.forEach(([key, label, min, max, step]) => {
+          const row = document.createElement("label");
+          row.className = "range-row";
+          const caption = document.createElement("span");
+          caption.textContent = label;
+          const input = document.createElement("input");
+          input.type = "range";
+          input.min = min;
+          input.max = max;
+          input.step = step;
+          input.value = state[group][key];
+          const value = document.createElement("span");
+          value.className = "range-value";
+          value.textContent = formatRangeValue(state[group][key]);
+          input.addEventListener("input", () => {
+            state[group][key] = Number(input.value);
+            value.textContent = formatRangeValue(state[group][key]);
+            saveState();
+            updateThreeUniforms();
+          });
+          row.append(caption, input, value);
+          root.append(row);
+        });
+      }
+
+      function formatRangeValue(value) {
+        return Math.abs(value) >= 10 ? String(Math.round(value)) : Number(value).toFixed(2);
+      }
+
+      function resize() {
+        if (!clockCanvas.parentElement) return;
+        const rect = clockCanvas.parentElement.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = Math.max(320, Math.floor(rect.width));
+        height = Math.max(360, Math.floor(rect.height));
+        [clockCanvas, threeCanvas].forEach((canvas) => {
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+        });
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (three) {
+          three.renderer.setPixelRatio(dpr);
+          three.renderer.setSize(width, height, false);
+        }
+        if (webgl) {
+          webgl.gl.viewport(0, 0, threeCanvas.width, threeCanvas.height);
+        }
+      }
+
+      function updateTime() {
+        const now = new Date();
+        const second = now.getSeconds();
+        if (second !== lastSecond) {
+          const parts = [now.getHours(), now.getMinutes(), now.getSeconds()].map((part) => String(part).padStart(2, "0"));
+          timeText = parts.join(":");
+          lastSecond = second;
+        }
+      }
+
+      function draw(now) {
+        updateTime();
+        ctx.clearRect(0, 0, width, height);
+        drawBackdrop(now);
+        if (!three && !webgl) {
+          drawFallbackDesk(now);
+        }
+        drawClock(now);
+        requestAnimationFrame(draw);
+      }
+
+      // High-Fidelity Physics-Based Soft Glow (Eliminates harsh edges completely)
+      function drawSoftGlowEllipse(ctx, cx, cy, rx, ry, colorHex, maxOpacity) {
+        if (rx <= 0.1 || ry <= 0.1) return;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(rx, ry);
+        ctx.globalCompositeOperation = "lighter";
+
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.0);
+        const stops = 16;
+        for (let i = 0; i <= stops; i++) {
+          const t = i / stops;
+          let factor = 0;
+          if (t < 1.0) {
+            // Gaussian decay: e^(-5.5 * t^2)
+            factor = Math.exp(-5.5 * t * t);
+          }
+          // Soften the boundary decay strictly to zero to cancel out any possible clipping edge
+          const op = maxOpacity * factor * (1.0 - t);
+          grad.addColorStop(t, hexToRgba(colorHex, op));
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawBackdrop(now) {
+        const glow = state.glow.ambient;
+        const gradient = ctx.createRadialGradient(width * 0.52, height * 0.27, 0, width * 0.52, height * 0.36, width * 0.72);
+        gradient.addColorStop(0, `rgba(255, 145, 72, ${0.12 * glow})`);
+        gradient.addColorStop(0.42, `rgba(41, 55, 62, ${0.16 * glow})`);
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = 0.16 + Math.sin(now * 0.0006) * 0.025;
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 11; i++) {
+          const y = height * 0.18 + i * height * 0.045;
+          ctx.beginPath();
+          ctx.moveTo(width * 0.08, y);
+          ctx.lineTo(width * 0.92, y + Math.sin(i) * 8);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function slotMetrics() {
+        const compact = width < 760;
+        const margin = compact ? width * 0.035 : width * 0.052;
+        const gap = compact ? width * 0.008 : width * 0.012;
+        const colonRatio = compact ? 0.38 : 0.32; // Shrunk colon slot ratio slightly to group colons tighter
+        const totalUnits = 6 + 2 * colonRatio;
+        const unit = (width - margin * 2 - gap * 7) / totalUnits;
+        const colon = unit * colonRatio;
+        const y = height * (compact ? 0.13 : 0.1);
+        const h = height * (compact ? 0.61 : 0.6);
+        const slots = [];
+        let x = margin;
+        chars.forEach((kind, index) => {
+          const isColon = kind[0] === "c";
+          const w = isColon ? colon : unit;
+          slots.push({ x, y, w, h, isColon, index });
+          x += w + gap;
+        });
+        return slots;
+      }
+
+      function drawClock(now) {
+        const slots = slotMetrics();
+        let digitIndex = 0;
+        let colonIndex = 0;
+        slots.forEach((slot, index) => {
+          drawBase(slot, state.baseColors[index], now);
+          if (slot.isColon) {
+            drawColon(slot, state.colonColors[colonIndex], now, colonIndex);
+            colonIndex += 1;
+          } else {
+            const digit = timeText.replaceAll(":", "")[digitIndex] || "0";
+            drawDigitUnit(slot, digit, state.digitColors[digitIndex], state.baseColors[index], now, digitIndex);
+            digitIndex += 1;
+          }
+        });
+        drawFrontEdge(slots, now);
+      }
+
+      function drawBase(slot, color, now) {
+        const cx = slot.x + slot.w / 2;
+        const baseY = slot.y + slot.h * 0.88;
+        const baseH = Math.max(16, slot.h * 0.105);
+        const pulse = 0.86 + Math.sin(now * 0.0022 + slot.index) * 0.08;
+
+        // Apply our Physics-Based Soft Glow to base background light
+        drawSoftGlowEllipse(
+          ctx, 
+          cx, 
+          baseY + baseH * 0.34, 
+          slot.w * 0.78, 
+          baseH * 1.75, 
+          color, 
+          0.42 * state.glow.bloom * pulse
+        );
+
+        ctx.save();
+        const top = ctx.createLinearGradient(slot.x, baseY - baseH * 0.35, slot.x, baseY + baseH * 0.65);
+        top.addColorStop(0, "rgba(255,255,255,0.28)");
+        top.addColorStop(0.18, hexToRgba(color, 0.48));
+        top.addColorStop(0.58, "rgba(8,10,13,0.88)");
+        top.addColorStop(1, "rgba(0,0,0,0.75)");
+        roundedRect(slot.x + slot.w * 0.06, baseY - baseH * 0.4, slot.w * 0.88, baseH, 8);
+        ctx.fillStyle = top;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawDigitUnit(slot, digit, color, baseColor, now, digitIndex) {
+        const tubeArea = {
+          x: slot.x + slot.w * 0.08,
+          y: slot.y + slot.h * 0.03,
+          w: slot.w * 0.84,
+          h: slot.h * 0.78
+        };
+
+        drawSupport(slot, baseColor);
+        drawGhostDigits(tubeArea, now, digitIndex);
+        
+        // Added high-fidelity volumetric gas-glow behind the active digit for Nixie realism
+        const cx = tubeArea.x + tubeArea.w / 2;
+        const cy = tubeArea.y + tubeArea.h * 0.5;
+        const pulse = 1 + Math.sin(now * 0.004 * state.glow.pulse + digitIndex) * 0.08;
+        drawSoftGlowEllipse(ctx, cx, cy, tubeArea.w * 0.78, tubeArea.h * 0.58, color, 0.12 * state.glow.bloom * pulse);
+
+        drawActiveDigit(tubeArea, digit, color, now, digitIndex);
+        drawPinDots(slot, baseColor);
+      }
+
+      function drawSupport(slot, color) {
+        ctx.save();
+        const x = slot.x + slot.w * 0.5;
+        const y1 = slot.y + slot.h * 0.08;
+        const y2 = slot.y + slot.h * 0.78;
+        ctx.strokeStyle = "rgba(210, 226, 226, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x, y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = hexToRgba(color, 0.14);
+        for (let i = 0; i < 5; i++) {
+          const xx = slot.x + slot.w * (0.2 + i * 0.15);
+          ctx.beginPath();
+          ctx.moveTo(xx, y2 - slot.h * 0.03);
+          ctx.lineTo(slot.x + slot.w * 0.5, slot.y + slot.h * 0.86);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawGhostDigits(area, now, digitIndex) {
+        const tube = effectiveTubeWidth(area);
+        const halo = effectiveHalo(area);
+        ctx.save();
+        setDigitFont(area);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        const cx = area.x + area.w / 2;
+        const cy = area.y + area.h * 0.5;
+        ctx.globalCompositeOperation = "screen";
+        for (let i = 9; i >= 0; i--) {
+          const jitter = Math.sin(now * 0.0007 + i * 1.7 + digitIndex) * area.w * 0.004;
+          ctx.lineWidth = Math.max(1, tube * 0.5);
+          ctx.strokeStyle = `rgba(210, 232, 228, ${state.glow.idle * (0.72 + (i % 3) * 0.08)})`;
+          ctx.shadowColor = "rgba(120, 210, 205, 0.17)";
+          ctx.shadowBlur = halo * 0.18;
+          ctx.strokeText(String(i), cx + jitter, cy);
+        }
+        ctx.restore();
+      }
+
+      function drawActiveDigit(area, digit, color, now, digitIndex) {
+        const tube = effectiveTubeWidth(area);
+        const halo = effectiveHalo(area);
+        const pulse = 1 + Math.sin(now * 0.004 * state.glow.pulse + digitIndex) * 0.08;
+        const flicker = 1 - Math.random() * state.glow.flicker * 0.09;
+        const cx = area.x + area.w / 2;
+        const cy = area.y + area.h * 0.5;
+
+        ctx.save();
+        setDigitFont(area);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = "lighter";
+
+        ctx.shadowColor = color;
+        ctx.shadowBlur = halo * 1.45 * state.glow.bloom * pulse;
+        ctx.lineWidth = tube * 2.25;
+        ctx.strokeStyle = hexToRgba(color, 0.42 * state.glow.bloom * flicker);
+        ctx.strokeText(digit, cx, cy);
+
+        ctx.shadowBlur = halo * 0.75 * state.glow.bloom;
+        ctx.lineWidth = tube * 1.22;
+        ctx.strokeStyle = hexToRgba(color, 0.92 * flicker);
+        ctx.strokeText(digit, cx, cy);
+
+        ctx.shadowBlur = halo * 0.16;
+        ctx.lineWidth = Math.max(1.1, tube * 0.38);
+        ctx.strokeStyle = "rgba(255, 248, 198, 0.94)";
+        ctx.strokeText(digit, cx, cy);
+        ctx.restore();
+      }
+
+      function setDigitFont(area) {
+        let size = Math.min(area.h * 0.88, area.w * 2.58);
+        const family = '"Arial Narrow", "Helvetica Neue Condensed Bold", "Trebuchet MS", sans-serif';
+        for (let attempt = 0; attempt < 10; attempt++) {
+          ctx.font = `700 ${size}px ${family}`;
+          if (ctx.measureText("8").width <= area.w * 1.08) break;
+          size *= 0.92;
+        }
+      }
+
+      function effectiveTubeWidth(area) {
+        return Math.min(state.glow.tubeWidth, Math.max(1.5, area.w * 0.075));
+      }
+
+      function effectiveHalo(area) {
+        return Math.min(state.glow.halo, Math.max(10, area.w * 0.82));
+      }
+
+      function drawPinDots(slot, color) {
+        const count = 5;
+        for (let i = 0; i < count; i++) {
+          const x = slot.x + slot.w * (0.22 + i * 0.14);
+          const y = slot.y + slot.h * 0.84 + Math.sin(i) * 2;
+          const r = Math.max(1.8, slot.w * 0.017);
+          
+          // Apply Soft Glow to support neon pin points
+          drawSoftGlowEllipse(ctx, x, y, r * 1.4, r * 0.7, "#ffffe0", 0.8);
+          drawSoftGlowEllipse(ctx, x, y, r * 4.5, r * 2.2, color, 0.5);
+        }
+      }
+
+      // (1) Centered and Shrunken Colons (使得中央處與數字中央處齊平，且形體更細緻緊湊)
+      function drawColon(slot, color, now, colonIndex) {
+        const cx = slot.x + slot.w / 2;
+        
+        // Exact horizontal midline of the active digits is slot.y + slot.h * 0.42
+        const centerY = slot.y + slot.h * 0.42;
+        
+        // Shrunken vertical spacing between top and bottom colon dots (from 0.27 to 0.17)
+        const halfSpacing = slot.h * 0.085;
+        const top = centerY - halfSpacing;
+        const bottom = centerY + halfSpacing;
+        
+        // Shrunken filament physical radius (elegant, tiny neon filaments)
+        const r = Math.max(5.5, slot.w * 0.145);
+        
+        drawColonBulb(cx, top, r, color, now, colonIndex);
+        drawColonBulb(cx, bottom, r, color, now + 240, colonIndex + 2);
+
+        // Core central wire support structure
+        ctx.save();
+        ctx.strokeStyle = "rgba(210, 226, 226, 0.14)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, slot.y + slot.h * 0.12);
+        ctx.lineTo(cx, slot.y + slot.h * 0.78);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawColonBulb(x, y, r, color, now, seed) {
+        const pulse = 0.9 + Math.sin(now * 0.004 * state.glow.pulse + seed) * 0.1;
+        
+        // (2) Advanced Multiple Gaussian-Decaying Soft Glowing Layers
+        // This simulates a vibrant physical gas dispersion with absolutely zero cutoff boundaries
+        // 1. Core ionization (warm white center)
+        drawSoftGlowEllipse(ctx, x, y, r * 1.1, r * 1.3, "rgba(255, 252, 210, 0.95)", 0.9);
+        // 2. High-intensity neon bloom
+        drawSoftGlowEllipse(ctx, x, y, r * 4.2 * state.glow.bloom * pulse, r * 5.0 * state.glow.bloom * pulse, color, 0.95);
+        // 3. Ultra-wide atmospheric dispersion (creates the natural volumetric glow look)
+        drawSoftGlowEllipse(ctx, x, y, r * 7.5 * state.glow.bloom * pulse, r * 9.0 * state.glow.bloom * pulse, color, 0.28);
+
+        // Filament solid physical wire drawing
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = state.glow.halo * 0.3;
+        ctx.fillStyle = hexToRgba(color, 0.92);
+        roundedRect(x - r * 0.44, y - r * 1.25, r * 0.88, r * 2.5, r * 0.45);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 246, 203, 0.92)";
+        roundedRect(x - r * 0.14, y - r * 0.92, r * 0.28, r * 1.84, r * 0.18);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawFrontEdge(slots, now) {
+        const left = slots[0].x + slots[0].w * 0.06;
+        const right = slots[slots.length - 1].x + slots[slots.length - 1].w * 0.94;
+        const y = slots[0].y + slots[0].h * 0.91;
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.quadraticCurveTo(width * 0.5, y + height * 0.025, right, y);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(255, 133, 67, ${0.13 + Math.sin(now * 0.001) * 0.025})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // (2) Physics-aligned, boundary-free local-coordinate scaled reflection (eliminates cutoffs completely)
+      function drawFallbackDesk(now) {
+        const horizon = height * 0.58;
+        const desk = state.desk;
+        
+        ctx.save();
+        const deskGradient = ctx.createLinearGradient(0, horizon, 0, height);
+        deskGradient.addColorStop(0, "rgba(70,72,72,0.48)");
+        deskGradient.addColorStop(0.36, "rgba(28,30,31,0.76)");
+        deskGradient.addColorStop(1, "rgba(6,6,7,0.94)");
+        ctx.fillStyle = deskGradient;
+        ctx.fillRect(0, horizon, width, height - horizon);
+
+        const slots = slotMetrics();
+        const angle = desk.angle * Math.PI / 180;
+        slots.forEach((slot, i) => {
+          const color = state.baseColors[i];
+          const cx = slot.x + slot.w / 2;
+          const y = slot.y + slot.h * 0.88;
+          const len = height * 0.25 * desk.length;
+          const dx = Math.sin(angle) * len;
+          const dy = Math.cos(angle) * len;
+
+          const localCx = dx * 0.56;
+          const localCy = dy * 0.56;
+          const rx = slot.w * desk.spread;
+          const ry = len * 0.62;
+
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.translate(cx, y);
+          ctx.rotate(angle * 0.55);
+          
+          // Translate to local ellipse center, scale and paint mathematically matched vector circle
+          ctx.translate(localCx, localCy);
+          ctx.scale(rx, ry);
+
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.0);
+          const stops = 16;
+          for (let k = 0; k <= stops; k++) {
+            const t = k / stops;
+            let factor = 0;
+            if (t < 1.0) {
+              // Smooth Gaussian specular simulation
+              factor = Math.exp(-6.0 * t * t);
+            }
+            const op = 0.45 * desk.intensity * factor * (1.0 - t);
+            grad.addColorStop(t, hexToRgba(color, op));
+          }
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(0, 0, 1.0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        ctx.restore();
+      }
+
+      function roundedRect(x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
+
+      function hexToRgba(hex, alpha) {
+        const value = hex.replace("#", "");
+        const bigint = parseInt(value, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+      }
+
+      function hexToVec(hex) {
+        const value = hex.replace("#", "");
+        const bigint = parseInt(value, 16);
+        return [((bigint >> 16) & 255) / 255, ((bigint >> 8) & 255) / 255, (bigint & 255) / 255];
+      }
+
+      function initThree() {
+        if (!window.THREE) {
+          initWebGLDesk();
+          return;
+        }
+        const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: true });
+        renderer.setClearColor(0x000000, 0);
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+        camera.position.z = 1;
+
+        const uniforms = {
+          uTime: { value: 0 },
+          uIntensity: { value: state.desk.intensity },
+          uAngle: { value: state.desk.angle * Math.PI / 180 },
+          uLength: { value: state.desk.length },
+          uSpread: { value: state.desk.spread },
+          uRefraction: { value: state.desk.refraction },
+          uColors: { value: state.baseColors.map((hex) => new THREE.Vector3(...hexToVec(hex))) }
+        };
+
+        const material = new THREE.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          uniforms,
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = vec4(position.xy, 0.0, 1.0);
+            }
+          `,
+          fragmentShader: `
+            precision highp float;
+            varying vec2 vUv;
+            uniform float uTime;
+            uniform float uIntensity;
+            uniform float uAngle;
+            uniform float uLength;
+            uniform float uSpread;
+            uniform float uRefraction;
+            uniform vec3 uColors[8];
+
+            float band(vec2 p, vec2 c, float w, float h) {
+              vec2 d = p - c;
+              float core = exp(-((d.x * d.x) / (w * w) + (d.y * d.y) / (h * h)));
+              return core;
+            }
+
+            void main() {
+              vec2 uv = vUv;
+              float deskMask = 1.0 - smoothstep(0.50, 0.66, uv.y);
+              vec3 base = mix(vec3(0.18, 0.19, 0.18), vec3(0.02, 0.022, 0.024), smoothstep(0.0, 0.6, uv.y));
+              float grain = sin((uv.x + uv.y) * 80.0 + sin(uv.y * 18.0)) * 0.012;
+              vec3 color = base + grain;
+              vec2 dir = vec2(sin(uAngle), cos(uAngle));
+              vec2 perp = vec2(dir.y, -dir.x);
+
+              for (int i = 0; i < 8; i++) {
+                float fi = float(i);
+                float sx = 0.065 + fi * 0.124;
+                if (i > 1) sx -= 0.018;
+                if (i > 4) sx -= 0.036;
+                vec2 source = vec2(sx, 0.32);
+                float wave = sin(uTime * 1.3 + fi * 2.2 + uv.x * 22.0) * 0.014 * uRefraction;
+                vec2 c = source - dir * (0.08 + uLength * 0.10) + perp * wave;
+                float g = band(uv, c, 0.03 + uSpread * 0.055, 0.08 + uLength * 0.16);
+                
+                // (2) Removed raw rigid smoothstep cutoff boundary. Applied exponential decay pow.
+                float streak = pow(g, 1.6) * (1.0 - smoothstep(0.44, 0.62, uv.y));
+                color += uColors[i] * streak * uIntensity * 0.72;
+              }
+
+              float sheen = pow(max(0.0, 1.0 - abs(uv.y - 0.50) * 9.0), 2.0) * 0.16;
+              color += vec3(0.9, 0.95, 1.0) * sheen;
+              float alpha = deskMask * (0.88 + uIntensity * 0.05);
+              gl_FragColor = vec4(color, alpha);
+            }
+          `
+        });
+
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+        scene.add(mesh);
+        three = { renderer, scene, camera, uniforms };
+        window.__glowClockRenderMode = "three";
+        resize();
+        animateThree();
+      }
+
+      function initWebGLDesk() {
+        const gl = threeCanvas.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: false });
+        if (!gl) return;
+        const vertexSource = `
+          attribute vec2 aPosition;
+          varying vec2 vUv;
+          void main() {
+            vUv = aPosition * 0.5 + 0.5;
+            gl_Position = vec4(aPosition, 0.0, 1.0);
+          }
+        `;
+        const fragmentSource = `
+          precision highp float;
+          varying vec2 vUv;
+          uniform float uTime;
+          uniform float uIntensity;
+          uniform float uAngle;
+          uniform float uLength;
+          uniform float uSpread;
+          uniform float uRefraction;
+          uniform vec3 uColors[8];
+
+          float band(vec2 p, vec2 c, float w, float h) {
+            vec2 d = p - c;
+            return exp(-((d.x * d.x) / (w * w) + (d.y * d.y) / (h * h)));
+          }
+
+          void main() {
+            vec2 uv = vUv;
+            float deskMask = 1.0 - smoothstep(0.50, 0.66, uv.y);
+            vec3 base = mix(vec3(0.18, 0.19, 0.18), vec3(0.018, 0.02, 0.023), smoothstep(0.0, 0.6, uv.y));
+            float grain = sin((uv.x + uv.y) * 82.0 + sin(uv.y * 18.0)) * 0.012;
+            vec3 color = base + grain;
+            vec2 dir = vec2(sin(uAngle), cos(uAngle));
+            vec2 perp = vec2(dir.y, -dir.x);
+
+            for (int i = 0; i < 8; i++) {
+              float fi = float(i);
+              float sx = 0.064 + fi * 0.124;
+              if (i > 1) sx -= 0.018;
+              if (i > 4) sx -= 0.036;
+              vec2 source = vec2(sx, 0.32);
+              float wave = sin(uTime * 1.3 + fi * 2.2 + uv.x * 22.0) * 0.014 * uRefraction;
+              vec2 c = source - dir * (0.08 + uLength * 0.10) + perp * wave;
+              float g = band(uv, c, 0.03 + uSpread * 0.055, 0.08 + uLength * 0.16);
+              
+              // (2) Smooth specular physical integration without threshold artifacts
+              float streak = pow(g, 1.6) * (1.0 - smoothstep(0.44, 0.62, uv.y));
+              color += uColors[i] * streak * uIntensity * 0.72;
+            }
+
+            float sheen = pow(max(0.0, 1.0 - abs(uv.y - 0.50) * 9.0), 2.0) * 0.16;
+            color += vec3(0.9, 0.95, 1.0) * sheen;
+            gl_FragColor = vec4(color, deskMask * (0.88 + uIntensity * 0.05));
+          }
+        `;
+        const program = createProgram(gl, vertexSource, fragmentSource);
+        if (!program) return;
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        const position = gl.getAttribLocation(program, "aPosition");
+        const uniforms = {
+          time: gl.getUniformLocation(program, "uTime"),
+          intensity: gl.getUniformLocation(program, "uIntensity"),
+          angle: gl.getUniformLocation(program, "uAngle"),
+          length: gl.getUniformLocation(program, "uLength"),
+          spread: gl.getUniformLocation(program, "uSpread"),
+          refraction: gl.getUniformLocation(program, "uRefraction"),
+          colors: gl.getUniformLocation(program, "uColors")
+        };
+        webgl = { gl, program, buffer, position, uniforms };
+        window.__glowClockRenderMode = "webgl";
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        resize();
+        animateWebGLDesk();
+      }
+
+      function createProgram(gl, vertexSource, fragmentSource) {
+        const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
+        const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+        if (!vertex || !fragment) return null;
+        const program = gl.createProgram();
+        gl.attachShader(program, vertex);
+        gl.attachShader(program, fragment);
+        gl.linkProgram(program);
+        return gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null;
+      }
+
+      function compileShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
+      }
+
+      function animateThree(now = 0) {
+        if (!three) return;
+        three.uniforms.uTime.value = now * 0.001;
+        three.renderer.render(three.scene, three.camera);
+        requestAnimationFrame(animateThree);
+      }
+
+      function animateWebGLDesk(now = 0) {
+        if (!webgl) return;
+        const { gl, program, buffer, position, uniforms } = webgl;
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.enableVertexAttribArray(position);
+        gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform1f(uniforms.time, now * 0.001);
+        gl.uniform1f(uniforms.intensity, state.desk.intensity);
+        gl.uniform1f(uniforms.angle, state.desk.angle * Math.PI / 180);
+        gl.uniform1f(uniforms.length, state.desk.length);
+        gl.uniform1f(uniforms.spread, state.desk.spread);
+        gl.uniform1f(uniforms.refraction, state.desk.refraction);
+        gl.uniform3fv(uniforms.colors, new Float32Array(state.baseColors.flatMap(hexToVec)));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        requestAnimationFrame(animateWebGLDesk);
+      }
+
+      function updateThreeUniforms() {
+        if (!three) return;
+        three.uniforms.uIntensity.value = state.desk.intensity;
+        three.uniforms.uAngle.value = state.desk.angle * Math.PI / 180;
+        three.uniforms.uLength.value = state.desk.length;
+        three.uniforms.uSpread.value = state.desk.spread;
+        three.uniforms.uRefraction.value = state.desk.refraction;
+        state.baseColors.forEach((hex, i) => {
+          three.uniforms.uColors.value[i].set(...hexToVec(hex));
+        });
+      }
+
+      document.getElementById("openSettings").addEventListener("click", () => {
+        if (typeof settingsDialog.showModal === "function") {
+          settingsDialog.showModal();
+        } else {
+          settingsDialog.setAttribute("open", "");
+        }
+      });
+
+      document.getElementById("resetSettings").addEventListener("click", () => {
+        state = structuredClone(defaultState);
+        saveState();
+        buildControls();
+        updateThreeUniforms();
+      });
+
+      settingsDialog.addEventListener("click", (event) => {
+        const rect = settingsDialog.getBoundingClientRect();
+        const outside = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+        if (outside) settingsDialog.close();
+      });
+
+      window.addEventListener("resize", resize);
+      buildControls();
+      resize();
+      initThree();
+      requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>

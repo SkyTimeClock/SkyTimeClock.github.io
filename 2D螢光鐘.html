@@ -1,0 +1,2223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D fluorescent clock</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    
+    body {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      background-color: #08090a;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom scrollbar to match industrial aesthetic */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #08090a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(249, 115, 22, 0.2);
+      border-radius: 9px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(249, 115, 22, 0.4);
+    }
+    
+    /* Knob/Dial visual styling */
+    .knob-track {
+      position: relative;
+      background: radial-gradient(circle at center, #1b1c1e 0%, #0d0e10 100%);
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .knob-marker {
+      position: absolute;
+      width: 3px;
+      height: 10px;
+      background-color: #f97316;
+      top: 3px;
+      left: calc(50% - 1.5px);
+      transform-origin: 50% 17px;
+      border-radius: 99px;
+      box-shadow: 0 0 6px #f97316;
+      transition: transform 0.2s cubic-bezier(0.1, 0.8, 0.2, 1);
+    }
+
+    /* Simultaneous Optimization for Short Landscapes (e.g. iPhone horizontal) vs. High Landscapes (e.g. iPad horizontal) */
+    @media (max-height: 580px) and (orientation: landscape) {
+      .short-landscape-container {
+        min-height: 0 !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+      }
+      .short-landscape-wrapper {
+        flex-direction: row !important;
+        gap: 1rem !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        max-width: 1100px !important;
+      }
+      .short-landscape-clock-box {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        flex-shrink: 0 !important;
+      }
+      .short-landscape-clock {
+        max-width: 44vw !important;
+        max-height: 75vh !important;
+        width: auto !important;
+        height: auto !important;
+      }
+      .short-landscape-digital-container {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        flex-shrink: 0 !important;
+      }
+      .short-landscape-digital {
+        transform: none !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0.75rem 1.25rem !important;
+      }
+      .short-landscape-digital canvas {
+        width: 3.5rem !important;
+        height: auto !important;
+      }
+      .short-landscape-date {
+        margin-top: 0.25rem !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-[#d1d5db] selection:bg-orange-500/30">
+
+  <!-- Main Chassis Container matching 1024x768 / Immersive Grid Ratio -->
+  <div class="w-full max-w-7xl mx-auto flex flex-col min-h-screen bg-[#08090a] border-x border-white/5 shadow-2xl relative">
+    
+    <!-- Top Header Bar -->
+    <header class="flex justify-between items-center px-6 md:px-8 py-5 border-b border-white/5 bg-black/20 backdrop-blur-md">
+      <div>
+        <h1 class="text-xs tracking-[0.3em] font-bold text-orange-500 uppercase mb-1">2D fluorescent clock</h1>
+        <div class="flex items-center gap-2">
+          <span id="power-indicator" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="system-status-msg" class="text-[10px] tracking-widest text-white/40 uppercase font-mono">Model LT-24 Virtual Cathode</span>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6 md:gap-8">
+        <div class="hidden md:flex gap-6 md:gap-8">
+          <div class="text-right">
+            <p class="text-[9px] text-white/30 uppercase tracking-widest font-mono">Core Temp</p>
+            <p id="system-temp" class="text-xs md:text-sm font-mono text-orange-200">32.4°C</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[9px] text-white/30 uppercase tracking-widest font-mono">Input Volt</p>
+            <p id="live-voltage-val" class="text-xs md:text-sm font-mono text-amber-500">170.2 V</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[9px] text-white/30 uppercase tracking-widest font-mono">Sync Status</p>
+            <p id="sync-status" class="text-xs md:text-sm font-mono text-emerald-400 uppercase tracking-wider">Nominal</p>
+          </div>
+        </div>
+
+        <!-- Power Control Switch Panel -->
+        <div class="flex items-center gap-7">
+          <div class="text-right hidden sm:block">
+            <p class="text-[8px] text-white/30 uppercase tracking-widest font-mono">Main Power</p>
+            <p id="power-toggle-label" class="text-[10px] font-mono text-emerald-500 font-bold uppercase">SYS POWER</p>
+          </div>
+          <button id="power-toggle-btn" class="w-12 h-12 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-emerald-950/40 shadow-[0_0_20px_rgba(16,185,129,0.5),inset_0_0_8px_rgba(16,185,129,0.3)] active:scale-90 cursor-pointer transition-all hover:bg-emerald-500 hover:text-black text-emerald-400" title="Toggle System Main Power">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+              <line x1="12" y1="2" x2="12" y2="12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Pop-up Settings Control Panel Trigger -->
+        <button id="open-settings-btn" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500/10 to-orange-400/5 hover:from-orange-500/20 hover:to-orange-400/15 active:scale-95 text-orange-400 border border-orange-500/30 hover:border-orange-500/50 rounded-lg text-xs font-mono uppercase tracking-[0.1em] transition-all cursor-pointer font-bold shadow-[0_0_15px_rgba(249,115,22,0.05)]">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 animate-[spin_12s_linear_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          調校設定 (CONFIG)
+        </button>
+      </div>
+    </header>
+
+    <!-- Mid Section - Tubes and Ambience Area -->
+    <div class="flex-1 flex flex-col justify-center items-center relative py-6 px-4 min-h-[500px] short-landscape-container">
+      <!-- Lighting ambient back glows -->
+      <div id="ambient-orange-glow" class="absolute pointer-events-none inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.06),transparent_70%)] transition-all duration-500"></div>
+      <div id="ambient-cyan-glow" class="absolute pointer-events-none inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(6,182,212,0.04),transparent_60%)] transition-all duration-500"></div>
+
+      <!-- Layout Wrapper for Clocks -->
+      <div class="flex flex-col items-center justify-center w-full z-10 short-landscape-wrapper">
+        
+        <!-- Part 1: Circular Glowing Analog Pointer Clock (Steampunk gears/glow halo style) -->
+        <div class="relative flex justify-center items-center mb-6 mt-4 sm:mt-6 lg:mt-8 short-landscape-clock-box">
+          <canvas id="analog-clock" width="560" height="560" class="max-w-[75vw] max-h-[42vh] md:max-h-[50vh] lg:max-h-[560px] aspect-square w-auto h-auto drop-shadow-[0_0_25px_rgba(249,115,22,0.18)] transition-all duration-500 select-none short-landscape-clock"></canvas>
+        </div>
+
+        <!-- Part 2 Container (Digital Clock & Date) -->
+        <div class="short-landscape-digital-container flex flex-col items-center justify-center">
+          <!-- Part 2: Pure Filament Glowing Digital Clock (Removing glass jar chassis, backing grids, and heavy slate base) -->
+          <div class="flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 scale-95 sm:scale-100 transition-all duration-500 bg-black/30 px-6 py-4 rounded-2xl border border-white/5 shadow-inner short-landscape-digital">
+            
+            <!-- Hours -->
+            <div class="flex gap-1 sm:gap-2 items-center">
+              <canvas id="tube-h1" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+              <canvas id="tube-h2" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+            </div>
+
+            <!-- Colon 1 -->
+            <div class="flex flex-col gap-4 items-center justify-center w-3 h-full pb-2">
+              <div id="colon-1-upper" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.6)] transition-all duration-300"></div>
+              <div id="colon-1-lower" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.6)] transition-all duration-300"></div>
+            </div>
+
+            <!-- Minutes -->
+            <div class="flex gap-1 sm:gap-2 items-center">
+              <canvas id="tube-m1" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+              <canvas id="tube-m2" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+            </div>
+
+            <!-- Colon 2 -->
+            <div class="flex flex-col gap-4 items-center justify-center w-3 h-full pb-2">
+              <div id="colon-2-upper" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.6)] transition-all duration-300"></div>
+              <div id="colon-2-lower" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.6)] transition-all duration-300"></div>
+            </div>
+
+            <!-- Seconds -->
+            <div class="flex gap-1 sm:gap-2 items-center">
+              <canvas id="tube-s1" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+              <canvas id="tube-s2" width="105" height="260" class="w-14 sm:w-16 md:w-20 lg:w-22 h-auto bg-transparent transition-opacity duration-300"></canvas>
+            </div>
+
+          </div>
+          
+          <!-- Live Date String Display overlay -->
+          <div id="live-date" class="mt-5 text-xs font-mono tracking-[0.2em] text-white/40 uppercase select-none short-landscape-date">-- 0000.00.00 --</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Popup Modal for System Configurations and Tuning Parameters -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-opacity duration-350">
+      
+      <!-- Modal Box Frame -->
+      <div class="relative w-full max-w-2xl bg-[#0b0c0ed8] border border-white/10 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(249,115,22,0.15)] max-h-[92vh] overflow-y-auto selection:bg-orange-500/30">
+        
+        <!-- Close button top-right -->
+        <button id="close-settings-btn" class="absolute top-6 right-6 p-2 text-white/40 hover:text-white/80 border border-white/5 hover:border-white/15 bg-white/5 rounded-lg transition-colors cursor-pointer" title="Close calibration deck">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
+        <!-- Modal Header -->
+        <div class="mb-6 pb-4 border-b border-white/10">
+          <h2 class="text-base tracking-[0.2em] font-mono font-bold text-white uppercase flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+            SYS PARAMETER CONTROL PANEL (參數調校)
+          </h2>
+          <p class="text-[11px] text-white/50 uppercase tracking-widest font-mono mt-1 font-semibold">Configure glowing atmospherics and physical relay settings</p>
+        </div>
+
+        <!-- 2-Column Inputs Grid Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Column A: System & Atmosphere Tuning -->
+          <div class="space-y-4">
+            <h3 class="text-xs md:text-sm font-mono tracking-wider text-emerald-400 uppercase pb-1.5 border-b border-white/10 font-bold">物理電壓與通透 (Voltage & Physical Settings)</h3>
+            
+            <!-- Glow Intensity slider element -->
+            <div class="p-3.5 bg-white/5 rounded-xl border border-white/5 space-y-2">
+              <div class="flex justify-between">
+                <label class="text-[11px] sm:text-xs uppercase tracking-wider text-neutral-200 font-sans font-bold">Glow Intensity (Bloom)</label>
+                <span id="glow-percent-label" class="text-xs font-mono text-yellow-400 font-bold">94%</span>
+              </div>
+              <input type="range" id="glow-slider" min="15" max="95" value="94" 
+                class="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 focus:outline-none transition-all">
+            </div>
+
+            <!-- Cathode Speed slider element -->
+            <div class="p-3.5 bg-white/5 rounded-xl border border-white/5 space-y-2">
+              <div class="flex justify-between">
+                <label class="text-[11px] sm:text-xs uppercase tracking-wider text-neutral-200 font-sans font-bold">Cathode Decay Response</label>
+                <span id="decay-label" class="text-xs font-mono text-yellow-400 font-bold">562ms</span>
+              </div>
+              <input type="range" id="speed-slider" min="40" max="600" value="562" 
+                class="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 focus:outline-none transition-all">
+            </div>
+
+            <!-- AC Hum Sound Noise level slider -->
+            <div class="p-3.5 bg-white/5 rounded-xl border border-white/5 space-y-2">
+              <div class="flex justify-between">
+                <label class="text-[11px] sm:text-xs uppercase tracking-wider text-neutral-200 font-sans font-bold">AC Transformer Hum (Web Audio)</label>
+                <span id="hum-label" class="text-[10px] font-mono text-yellow-400 font-bold">15%</span>
+              </div>
+              <input type="range" id="hum-slider" min="0" max="100" value="15" 
+                class="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 focus:outline-none transition-all">
+            </div>
+
+            <!-- Clock Chime Relay switch -->
+            <div class="flex items-center justify-between p-3.5 bg-white/5 rounded-xl border border-white/5">
+              <label class="text-[11px] sm:text-xs uppercase tracking-wider text-neutral-200 font-sans flex items-center gap-2 font-bold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                Relay Chime Tick Action
+              </label>
+              <div class="flex items-center gap-3">
+                <span id="chime-status-label" class="text-xs font-mono text-yellow-400 font-bold">ON</span>
+                <button id="chime-toggle-btn" class="relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border border-emerald-500/35 bg-emerald-500/15 p-0.5 transition-colors duration-200 ease-in-out focus:outline-none" role="switch" aria-checked="true" title="Turn clock tick sound on/off">
+                  <span id="chime-toggle-dot" class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-emerald-500 shadow transition duration-200 ease-in-out translate-x-5"></span>
+                </button>
+              </div>
+            </div>
+
+            <h3 class="text-xs md:text-sm font-mono tracking-wider text-emerald-400 uppercase pb-1.5 border-b border-white/10 font-bold pt-3.5">發光主色調 (Atmospheric Glow System)</h3>
+
+            <!-- Tube Glow Custom Picker trigger box -->
+            <div class="relative space-y-2">
+              <div id="glow-color-trigger" class="flex items-center justify-between bg-white/5 border border-white/5 hover:border-white/20 p-2.5 rounded-xl cursor-pointer transition-all group">
+                <span class="text-xs uppercase tracking-widest text-[#16F9C0] font-mono font-bold">Custom Gas System</span>
+                <div class="flex items-center gap-3">
+                  <div id="glow-color-box" class="w-8 h-4 rounded border border-white/20 shadow-inner" style="background-color: #16F9C0;"></div>
+                  <span id="glow-color-hex" class="text-xs font-mono text-[#16F9C0] font-semibold tracking-wider">#16F9C0</span>
+                </div>
+              </div>
+              
+              <!-- POPUP COLOR PICKER CONTAINER (Now beautifully integrated inline within modal) -->
+              <div id="custom-color-picker-popup" class="hidden w-full bg-white text-black rounded-xl shadow-2xl border border-neutral-200 z-50 select-none overflow-hidden">
+                <!-- 2D SV Panel -->
+                <div id="sv-canvas-container" class="relative w-full h-[120px] cursor-crosshair overflow-hidden">
+                  <canvas id="picker-sv-canvas" class="w-full h-full block" width="280" height="120"></canvas>
+                  <!-- Selector handle ring -->
+                  <div id="picker-sv-handle" class="absolute w-4 h-4 rounded-full border-2 border-white pointer-events-none shadow-[0_0_0_1.5px_#000000]" style="top: 0px; left: 0px; margin-top: -8px; margin-left: -8px;"></div>
+                </div>
+                
+                <!-- Controls and sliders segment of color-picker -->
+                <div class="p-3.5 space-y-3 bg-white">
+                  <div class="flex items-center gap-2.5">
+                    <button id="picker-eyedropper" class="p-1 px-1.5 hover:bg-neutral-100 rounded text-neutral-800 transition-colors" title="Use Pipette / Eyedropper API">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m2 22 1-1c.5-.5.5-1.3 0-1.8L12 10.3l3.7 3.7-8.9 10.9c-.5.5-1.3.5-1.8 0L2 22Z"/>
+                        <path d="M12 10.3 16.7 5.6c.5-.5.5-1.3 0-1.8l-1.5-1.5c-.5-.5-1.3-.5-1.8 0L8.8 6.9"/>
+                        <path d="m21 21-1 1-6.1-6.1 1-1 6.1 6.1Z"/>
+                      </svg>
+                    </button>
+                    
+                    <div id="picker-preview-circle" class="w-6 h-6 rounded-full border border-neutral-300 shadow-sm" style="background-color: #16F9C0;"></div>
+                    
+                    <div class="flex-1">
+                      <input type="range" id="picker-hue-slider" min="0" max="360" value="165" 
+                        class="w-full h-2.5 rounded-full appearance-none cursor-pointer focus:outline-none" 
+                        style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);">
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex-1 flex flex-col items-center gap-0.5">
+                      <input type="number" id="picker-r" min="0" max="255" value="22" 
+                        class="w-full h-8 px-1 text-center font-mono text-xs font-semibold text-black border border-neutral-200 rounded focus:border-orange-500">
+                      <span class="text-[9px] font-sans text-neutral-400">R</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-0.5">
+                      <input type="number" id="picker-g" min="0" max="255" value="249" 
+                        class="w-full h-8 px-1 text-center font-mono text-xs font-semibold text-black border border-neutral-200 rounded focus:border-orange-500">
+                      <span class="text-[9px] font-sans text-neutral-400">G</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-0.5">
+                      <input type="number" id="picker-b" min="0" max="255" value="192" 
+                        class="w-full h-8 px-1 text-center font-mono text-xs font-semibold text-black border border-neutral-200 rounded focus:border-orange-500">
+                      <span class="text-[9px] font-sans text-neutral-400">B</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Standard gas envelop styling presets switcher -->
+            <div class="space-y-1.5 pt-1">
+              <p class="text-xs tracking-wider text-white font-mono font-bold block pb-1 border-b border-white/10">Preset Atmospheres (主題預設)</p>
+              <div class="grid grid-cols-2 gap-2">
+                <div onclick="applyPreset('amber')" class="preset-row flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5 hover:bg-white/10 cursor-pointer transition-all group">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_6px_#f97316]"></div>
+                    <span class="text-xs text-slate-200 font-bold font-sans">Amber Glow</span>
+                  </div>
+                  <span class="text-[8px] text-orange-500 font-mono opacity-0 group-hover:opacity-100 transition-all font-bold">APPLY</span>
+                </div>
+
+                <div onclick="applyPreset('cyber')" class="preset-row flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5 hover:bg-white/10 cursor-pointer transition-all group">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]"></div>
+                    <span class="text-xs text-slate-200 font-bold font-sans">Cyber Neo</span>
+                  </div>
+                  <span class="text-[8px] text-cyan-400 font-mono opacity-0 group-hover:opacity-100 transition-all font-bold">APPLY</span>
+                </div>
+
+                <div onclick="applyPreset('radium')" class="preset-row flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5 hover:bg-white/10 cursor-pointer transition-all group">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]"></div>
+                    <span class="text-xs text-slate-200 font-bold font-sans">Toxic Blue</span>
+                  </div>
+                  <span class="text-[8px] text-green-500 font-mono opacity-0 group-hover:opacity-100 transition-all font-bold">APPLY</span>
+                </div>
+
+                <div onclick="applyPreset('aurora')" class="preset-row flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5 hover:bg-white/10 cursor-pointer transition-all group">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 shadow-[0_0_6px_#d946ef]"></div>
+                    <span class="text-xs text-slate-200 font-bold font-sans">Northern Purple</span>
+                  </div>
+                  <span class="text-[8px] text-fuchsia-500 font-mono opacity-0 group-hover:opacity-100 transition-all font-bold">APPLY</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column B: Aesthetics, Dials, and Custom Color System -->
+          <div class="space-y-4">
+            <h3 class="text-xs md:text-sm font-mono tracking-wider text-emerald-400 uppercase pb-1.5 border-b border-white/10 font-bold">顯示模式與旋鈕 (Display Mode & Dials)</h3>
+            
+            <!-- Rotary Knobs Row -->
+            <div class="grid grid-cols-2 gap-3.5">
+              <!-- Hue shift knob dial -->
+              <div class="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl border border-white/5 gap-2">
+                <div id="hue-knob" class="w-11 h-11 rounded-full knob-track border border-white/10 flex items-center justify-center cursor-pointer active:scale-95 transition-transform" title="Tap to rotate Color Hue">
+                  <div id="hue-knob-marker" class="knob-marker" style="transform: rotate(30deg);"></div>
+                  <div class="w-6 h-6 rounded-full bg-black/40 border border-white/5"></div>
+                </div>
+                <span class="text-xs tracking-wider text-neutral-200 font-sans font-bold">Hue Tone Dial</span>
+              </div>
+
+              <!-- Time display mode knob switcher (12H / 24H) -->
+              <div class="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl border border-white/5 gap-2">
+                <div id="mode-knob" class="w-11 h-11 rounded-full knob-track border border-white/10 flex items-center justify-center cursor-pointer active:scale-95 transition-transform" title="Tap to switch mode">
+                  <div id="mode-knob-marker" class="knob-marker" style="transform: rotate(0deg);"></div>
+                  <div class="w-6 h-6 rounded-full bg-black/40 border border-white/5"></div>
+                </div>
+                <span id="label-mode-indicator" class="text-xs tracking-wider text-neutral-200 font-sans font-bold text-center">MODE: 24H</span>
+              </div>
+            </div>
+
+            <h3 class="text-xs md:text-sm font-mono tracking-wider text-emerald-400 uppercase pb-1.5 border-b border-white/10 font-bold pt-3.5">指針與細部色彩調修 (Hand & Ticks Colors)</h3>
+
+            <!-- Hand individual colors customizable picker -->
+            <div class="space-y-1.5">
+              <p class="text-xs tracking-wider text-white font-mono font-bold block pb-1 border-b border-white/10">針組個別調色 (Hand Custom Colors)</p>
+              <div class="grid grid-cols-3 gap-2">
+                <!-- Hour Hand Color picker -->
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">時針 (Hour)</span>
+                  <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="hour-color-picker" value="#16F9C0" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit hour hand color">
+                  </div>
+                </div>
+
+                <!-- Minute Hand Color picker -->
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">分針 (Min)</span>
+                  <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="minute-color-picker" value="#ffffff" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit minute hand color">
+                  </div>
+                </div>
+
+                <!-- Second Hand Color picker -->
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">秒針 (Sec)</span>
+                  <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="second-color-picker" value="#f43f5e" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit second hand color">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Light bars individual colors customizable picker -->
+            <div class="space-y-1.5 border-t border-white/5 pt-3">
+              <p class="text-xs tracking-wider text-white font-mono font-bold block pb-1 border-b border-white/10">外圈短光條調色 (Outer Light Bars Colors)</p>
+              <div class="grid grid-cols-2 gap-2">
+                <!-- Light Bar Color A picker -->
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">光條 A (Color A)</span>
+                  <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="lightbar-color-a-picker" value="#ffffff" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit light bar color A">
+                  </div>
+                </div>
+
+                <!-- Light Bar Color B picker -->
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">光條 B (Color B)</span>
+                  <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="lightbar-color-b-picker" value="#cbd5e1" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit light bar color B">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Non-quarter Clock ticks (1,2,4,5,7,8,10,11) Colors -->
+            <div class="space-y-1.5 border-t border-white/5 pt-3">
+              <p class="text-xs tracking-wider text-white font-mono font-bold block pb-1 border-b border-white/10">整點與刻度調色 (Non-Quarter Ticks & Hours Color)</p>
+              <div class="grid grid-cols-1 gap-2">
+                <div class="flex flex-col items-center justify-center p-2 bg-white/5 rounded-lg border border-white/5 gap-1 hover:bg-white/10 transition-all group">
+                  <span class="text-xs text-neutral-200 font-bold font-sans">1,2,4,5,7,8,10,11 點 & 副刻度顏色</span>
+                  <div class="relative flex items-center justify-center w-8 h-8 rounded-full bg-black/40 overflow-hidden border border-white/10 group-hover:border-white/20 transition-all">
+                    <input type="color" id="nonquarter-color-picker" value="#f43f5e" class="absolute w-12 h-12 rounded-full cursor-pointer outline-none border-none p-0 bg-transparent" title="Edit non-quarter hour dots and ticks color">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Outer Rims Opacity Control -->
+            <div class="space-y-1.5 border-t border-white/5 pt-3">
+              <div class="flex justify-between">
+                <span class="text-xs tracking-wider text-white font-mono font-bold">外層圓框透明度 (Outer Rims Opacity)</span>
+                <span id="outer-rim-opacity-label" class="text-xs font-mono text-yellow-400 font-bold">10%</span>
+              </div>
+              <input type="range" id="outer-rim-opacity-slider" min="0" max="100" value="10" 
+                class="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 focus:outline-none transition-all" title="Adjust the opacity of the outer circles">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Rapid cycles cleaner trigger from within parameters deck -->
+        <div class="mt-8 pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-5">
+          <button id="cleaner-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)] px-5 py-2.5 rounded-xl text-xs md:text-sm font-sans transition-all active:scale-95 cursor-pointer font-bold flex items-center gap-2" title="Run rapid cycles through all numbers to prevent cathode sputtering">
+            ⚡ CHOP ELECTRODE CLEANER SWEEP (排毒循環)
+          </button>
+          
+          <!-- Dynamic Visual Live Feedback Previews -->
+          <div class="flex items-center gap-4">
+            <!-- Glass Nixie 5 Filament Glow Preview Item -->
+            <div class="relative w-14 h-24 bg-[#090a0c] rounded-xl border border-white/5 flex items-center justify-center overflow-hidden" title="Live Nixie Digit Glow Preview">
+              <canvas id="preview-nixie-canvas" width="56" height="96" class="w-full h-full bg-transparent"></canvas>
+            </div>
+            
+            <!-- Glowing Dial VI Segment Bezel Preview Item -->
+            <div class="relative w-20 h-24 bg-[#090a0c] rounded-xl border border-white/5 flex items-center justify-center overflow-hidden" title="Live Dial Arc Preview">
+              <canvas id="preview-analog-canvas" width="80" height="96" class="w-full h-full bg-transparent"></canvas>
+            </div>
+            
+            <p class="text-[10px] font-mono text-white/25 select-none self-end pb-1.5">ID: LT-24_SYS_DECK</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Active Cathode Sweep activation and sub infos -->
+    <footer class="text-center py-4 bg-black/40 border-t border-white/5 flex flex-wrap items-center justify-between px-8 text-[10px] font-mono text-white/30 tracking-tight gap-4 select-none">
+      <div>
+        <span>CO2 REGULATOR GAIN: </span>
+        <span class="text-orange-500">1.436</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>SYS UPTIME: <span id="uptime-clock" class="text-slate-400">00:00:00</span></span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+     // State of the application
+    const state = {
+      power: true,
+      glowRange: 94,          // glow size mapped from slider
+      transitionSpeed: 562,   // ms time to slide/shift cathode digits
+      colorHue: 165,          // hue color rotation (deg)
+      primaryColor: 'rgba(22, 249, 192, 1)',
+      secondaryColor: 'rgba(22, 249, 135, 0.85)',
+      tickColor: 'rgba(244, 63, 94, 0.9)',
+      nonQuarterColor: '#f43f5e',
+      nonQuarterColorCustomized: false,
+      hourHandColor: '#16F9C0',
+      minuteHandColor: '#ffffff',
+      secondHandColor: '#f43f5e',
+      lightBarColorA: '#ffffff',
+      lightBarColorB: '#cbd5e1',
+      outerRimOpacity: 0.1,
+      colonsStatus: true,
+      lastTickSecond: -1,
+      acHumVolume: 0.0,
+      relaySoundEnabled: true, // physical clicking chime sound switch setting
+      format24h: true,
+      isCleaning: false,
+      cleanTimer: 0,
+      startTime: Date.now()
+    };
+
+    // Preset configurations
+    const presets = {
+      amber: { glow: 40, speed: 180, hue: 28, hourHand: '#f59e0b', minuteHand: '#f1f5f9', secondHand: '#f43f5e', lightBarA: '#ffffff', lightBarB: '#cbd5e1', nonQuarter: '#f43f5e' },
+      cyber: { glow: 65, speed: 120, hue: 190, hourHand: '#06b6d4', minuteHand: '#ffffff', secondHand: '#e11d48', lightBarA: '#00ffff', lightBarB: '#e11d48', nonQuarter: '#e11d48' },
+      radium: { glow: 45, speed: 220, hue: 110, hourHand: '#10b981', minuteHand: '#f1f5f9', secondHand: '#fbbf24', lightBarA: '#10b981', lightBarB: '#fbbf24', nonQuarter: '#fbbf24' },
+      aurora: { glow: 55, speed: 300, hue: 300, hourHand: '#d946ef', minuteHand: '#cbd5e1', secondHand: '#f43f5e', lightBarA: '#d946ef', lightBarB: '#6366f1', nonQuarter: '#f43f5e' }
+    };
+
+    // Vector representations for standard geometric lines corresponding containing inside glass envelopes.
+    // They are centered dynamically within the drawing bounding box.
+    const digitDrawings = {
+      '0': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx * 0.7, ry * 0.85, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      },
+      '1': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.2, cy - ry * 0.8);
+        ctx.lineTo(cx, cy - ry * 0.85);
+        ctx.lineTo(cx, cy + ry * 0.85);
+        ctx.moveTo(cx - rx * 0.5, cy + ry * 0.85);
+        ctx.lineTo(cx + rx * 0.5, cy + ry * 0.85);
+        ctx.stroke();
+      },
+      '2': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.6, cy - ry * 0.5);
+        ctx.bezierCurveTo(cx - rx * 0.6, cy - ry * 0.95, cx + rx * 0.6, cy - ry * 0.95, cx + rx * 0.6, cy - ry * 0.4);
+        ctx.bezierCurveTo(cx + rx * 0.6, cy + ry * 0.1, cx - rx * 0.3, cy + ry * 0.4, cx - rx * 0.6, cy + ry * 0.85);
+        ctx.lineTo(cx + rx * 0.7, cy + ry * 0.85);
+        ctx.stroke();
+      },
+      '3': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.5, cy - ry * 0.75);
+        ctx.lineTo(cx + rx * 0.4, cy - ry * 0.75);
+        ctx.lineTo(cx + rx * 0.05, cy - ry * 0.1);
+        ctx.bezierCurveTo(cx + rx * 0.6, cy - ry * 0.1, cx + rx * 0.65, cy + ry * 0.85, cx - rx * 0.5, cy + ry * 0.85);
+        ctx.bezierCurveTo(cx - rx * 0.7, cy + ry * 0.85, cx - rx * 0.75, cy + ry * 0.6, cx - rx * 0.75, cy + ry * 0.5);
+        ctx.stroke();
+      },
+      '4': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.3, cy - ry * 0.8);
+        ctx.lineTo(cx - rx * 0.7, cy + ry * 0.2);
+        ctx.lineTo(cx + rx * 0.6, cy + ry * 0.2);
+        ctx.moveTo(cx + rx * 0.25, cy - ry * 0.3);
+        ctx.lineTo(cx + rx * 0.25, cy + ry * 0.85);
+        ctx.stroke();
+      },
+      '5': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx + rx * 0.5, cy - ry * 0.75);
+        ctx.lineTo(cx - rx * 0.5, cy - ry * 0.75);
+        ctx.lineTo(cx - rx * 0.5, cy - ry * 0.1);
+        ctx.bezierCurveTo(cx - rx * 0.1, cy - ry * 0.1, cx + rx * 0.6, cy + ry * 0.05, cx + rx * 0.6, cy + ry * 0.45);
+        ctx.bezierCurveTo(cx + rx * 0.6, cy + ry * 0.85, cx - rx * 0.4, cy + ry * 0.85, cx - rx * 0.65, cy + ry * 0.85);
+        ctx.stroke();
+      },
+      '6': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx + rx * 0.5, cy - ry * 0.65);
+        ctx.bezierCurveTo(cx - rx * 0.6, cy - ry * 0.5, cx - rx * 0.7, cy + ry * 0.85, cx, cy + ry * 0.85);
+        ctx.bezierCurveTo(cx + rx * 0.6, cy + ry * 0.85, cx + rx * 0.6, cy + ry * 0.05, cx, cy + ry * 0.05);
+        ctx.bezierCurveTo(cx - rx * 0.4, cy + ry * 0.05, cx - rx * 0.6, cy + ry * 0.2, cx - rx * 0.6, cy + ry * 0.45);
+        ctx.stroke();
+      },
+      '7': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.6, cy - ry * 0.75);
+        ctx.lineTo(cx + rx * 0.6, cy - ry * 0.75);
+        ctx.lineTo(cx + rx * 0.1, cy + ry * 0.85);
+        ctx.stroke();
+      },
+      '8': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - ry * 0.35, rx * 0.5, ry * 0.38, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy + ry * 0.42, rx * 0.6, ry * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      },
+      '9': (ctx, cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.5, cy + ry * 0.65);
+        ctx.bezierCurveTo(cx + rx * 0.6, cy + ry * 0.5, cx + rx * 0.7, cy - ry * 0.85, cx, cy - ry * 0.85);
+        ctx.bezierCurveTo(cx - rx * 0.6, cy - ry * 0.85, cx - rx * 0.6, cy - ry * 0.05, cx, cy - ry * 0.05);
+        ctx.bezierCurveTo(cx + rx * 0.4, cy - ry * 0.05, cx + rx * 0.6, cy - ry * 0.2, cx + rx * 0.6, cy - ry * 0.45);
+        ctx.stroke();
+      }
+    };
+
+    // Stacking simulation list Order for dark physical inactive filaments
+    const backgroundFilamentList = ['4', '7', '1', '9', '2', '8', '0', '3', '6', '5'];
+
+    // Web Audio Synthesizer variables
+    let audioContext = null;
+    let humOscillator = null;
+    let humGainNode = null;
+
+    // Tube components tracking interpolation values
+    class Tube {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.currentValue = '0';
+        this.targetValue = '0';
+        this.transitionProgress = 1.0; // 0.0 to 1.0
+        this.voltageNoise = 0;
+        
+        // Initialize dynamic size
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+      }
+
+      setVal(newVal) {
+        if (newVal !== this.targetValue) {
+          if (state.power) {
+            triggerRelaySound();
+          }
+          this.currentValue = this.targetValue;
+          this.targetValue = newVal;
+          this.transitionProgress = 0.0;
+        }
+      }
+
+      update(dt) {
+        if (this.transitionProgress < 1.0) {
+          this.transitionProgress += dt / state.transitionSpeed;
+          if (this.transitionProgress > 1.0) {
+            this.transitionProgress = 1.0;
+            this.currentValue = this.targetValue;
+          }
+        }
+        
+        // Dynamic voltage noise / sputter flicker calculation
+        this.voltageNoise = (Math.random() - 0.5) * (0.015 * (100 - state.glowRange)/20);
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        const w = this.width;
+        const h = this.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Core central geometric alignments
+        const cx = w / 2;
+        const cy = h / 2 + 10;
+        const rx = w * 0.32;
+        const ry = h * 0.34;
+
+        if (!state.power) {
+          // Off Mode: completely black and silent
+          return;
+        }
+
+        // 1. Render physical stack of inactive wire filaments in highly subtle outline
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+        ctx.lineWidth = 1.0;
+        ctx.shadowBlur = 0;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        backgroundFilamentList.forEach((digit, i) => {
+          // Do not draw active target values in inactive color
+          if (digit === this.targetValue || digit === this.currentValue) return;
+          
+          ctx.save();
+          // Offset each inactive filament slightly to form physical wire layering 3D effect
+          ctx.translate((i - 5) * 0.8, (i - 5) * 0.4);
+          if (digitDrawings[digit]) {
+            digitDrawings[digit](ctx, cx, cy, rx, ry);
+          }
+          ctx.restore();
+        });
+        ctx.restore();
+
+        // 2. Render luminous gas active digits
+        this.drawActiveDigit(ctx, cx, cy, rx, ry);
+      }
+
+      drawCathodeMesh(ctx, cx, cy, rx, ry) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        
+        // Draw vertical metal rods of internal anode envelope
+        const steps = 14;
+        for (let i = -steps/2; i <= steps/2; i++) {
+          const xOffset = (i / (steps/2)) * rx * 0.95;
+          ctx.moveTo(cx + xOffset, cy - ry * 0.88);
+          ctx.lineTo(cx + xOffset, cy + ry * 0.88);
+        }
+        
+        // Draw backing horizontal bands
+        const hsteps = 18;
+        for (let i = 0; i < hsteps; i++) {
+          const yPos = (cy - ry * 0.85) + (i / hsteps) * ry * 1.7;
+          ctx.moveTo(cx - rx * 0.85, yPos);
+          ctx.lineTo(cx + rx * 0.85, yPos);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      drawActiveDigit(ctx, cx, cy, rx, ry) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const factor = state.glowRange / 35; // modifier for glow ranges
+        
+        const drawSingleGlowValue = (digit, opacityMultiplier) => {
+          if (!digitDrawings[digit] || opacityMultiplier <= 0) return;
+          const currentOpacity = opacityMultiplier * (1.0 + this.voltageNoise);
+          
+          // Outer bloom halo dispersion cloud
+          ctx.save();
+          ctx.strokeStyle = state.secondaryColor;
+          ctx.globalAlpha = currentOpacity * 0.16;
+          ctx.lineWidth = 14 * factor;
+          ctx.shadowColor = state.secondaryColor;
+          ctx.shadowBlur = (state.glowRange + 5) * 0.8 * factor;
+          digitDrawings[digit](ctx, cx, cy, rx, ry);
+          ctx.restore();
+
+          // Main Neon hot plasma sheath
+          ctx.save();
+          ctx.strokeStyle = state.primaryColor;
+          ctx.globalAlpha = currentOpacity * 0.78;
+          ctx.lineWidth = 4.2 * factor;
+          ctx.shadowColor = state.primaryColor;
+          ctx.shadowBlur = 10 * factor;
+          digitDrawings[digit](ctx, cx, cy, rx, ry);
+          ctx.restore();
+
+          // Liquid core high density wire鎢絲 (hot center)
+          ctx.save();
+          ctx.strokeStyle = '#ffffff';
+          ctx.globalAlpha = currentOpacity * 0.92;
+          ctx.lineWidth = 1.3;
+          ctx.shadowBlur = 0;
+          digitDrawings[digit](ctx, cx, cy, rx, ry);
+          ctx.restore();
+        };
+
+        if (this.currentValue === this.targetValue) {
+          // Stable Digit
+          drawSingleGlowValue(this.targetValue, 1.0);
+        } else {
+          // Dynamic crossfade Fading
+          const progress = this.transitionProgress;
+          drawSingleGlowValue(this.currentValue, 1.0 - progress);
+          drawSingleGlowValue(this.targetValue, progress);
+        }
+
+        ctx.restore();
+      }
+
+      // Procedural Glass Tube Highlight Physics
+      drawGlassChassis(ctx, w, h) {
+        ctx.save();
+        
+        // Glass inner cylinder edge shade
+        const edgeGrad = ctx.createLinearGradient(0, 0, w, 0);
+        edgeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+        edgeGrad.addColorStop(0.08, 'rgba(255, 255, 255, 0.015)');
+        edgeGrad.addColorStop(0.18, 'rgba(0, 0, 0, 0)');
+        edgeGrad.addColorStop(0.82, 'rgba(0, 0, 0, 0)');
+        edgeGrad.addColorStop(0.92, 'rgba(255, 255, 255, 0.015)');
+        edgeGrad.addColorStop(1, 'rgba(255, 255, 255, 0.08)');
+        
+        ctx.fillStyle = edgeGrad;
+        ctx.beginPath();
+        ctx.roundRect(4, 4, w - 8, h - 4, [w/2, w/2, 0, 0]);
+        ctx.fill();
+
+        // High gloss specularity bright sheen running down left hemisphere
+        const sheenGrad = ctx.createLinearGradient(0, 0, w, 0);
+        sheenGrad.addColorStop(0.12, 'rgba(255, 255, 255, 0.09)');
+        sheenGrad.addColorStop(0.15, 'rgba(255, 255, 255, 0.16)');
+        sheenGrad.addColorStop(0.18, 'rgba(255, 255, 255, 0.02)');
+        sheenGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = sheenGrad;
+        ctx.beginPath();
+        ctx.roundRect(8, 6, w - 16, h - 6, [w/2, w/2, 0, 0]);
+        ctx.fill();
+
+        // Metal base bracket seat ring at the absolute bottom
+        ctx.fillStyle = '#1c1e21';
+        ctx.fillRect(4, h - 14, w - 8, 14);
+        
+        const bracketGrad = ctx.createLinearGradient(0, 0, w, 0);
+        bracketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.6)');
+        bracketGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
+        bracketGrad.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+        ctx.fillStyle = bracketGrad;
+        ctx.fillRect(4, h - 14, w - 8, 14);
+
+        // Thin brass spacer rim
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.4)';
+        ctx.fillRect(8, h - 16, w - 16, 2);
+
+        ctx.restore();
+      }
+    }
+
+    const tubes = [
+      new Tube('tube-h1'),
+      new Tube('tube-h2'),
+      new Tube('tube-m1'),
+      new Tube('tube-m2'),
+      new Tube('tube-s1'),
+      new Tube('tube-s2')
+    ];
+
+    // Play dynamic physical clicking tick switch relays
+    function triggerRelaySound() {
+      if (!state.relaySoundEnabled) return;
+      if (!audioContext) return;
+      try {
+        const volume = 0.25;
+        const now = audioContext.currentTime;
+        
+        // Metallic tick high resonator
+        const clickOsc = audioContext.createOscillator();
+        const clickGain = audioContext.createGain();
+        clickOsc.type = 'triangle';
+        clickOsc.frequency.setValueAtTime(2800, now);
+        clickOsc.frequency.exponentialRampToValueAtTime(100, now + 0.005);
+        
+        clickGain.gain.setValueAtTime(volume * 0.35, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.005);
+        
+        clickOsc.connect(clickGain);
+        clickGain.connect(audioContext.destination);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.015);
+        
+        // Solid wood base mass response (low heavy hum thud)
+        const baseOsc = audioContext.createOscillator();
+        const baseGain = audioContext.createGain();
+        baseOsc.type = 'sine';
+        baseOsc.frequency.setValueAtTime(190, now);
+        baseOsc.frequency.exponentialRampToValueAtTime(60, now + 0.035);
+        
+        baseGain.gain.setValueAtTime(volume, now);
+        baseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+        
+        baseOsc.connect(baseGain);
+        baseGain.connect(audioContext.destination);
+        baseOsc.start(now);
+        baseOsc.stop(now + 0.05);
+
+      } catch (e) {
+        console.warn("Audio Click exception", e);
+      }
+    }
+
+    // Audio Hum synthesizer manager
+    function initOrUpdateHumSynth() {
+      if (!audioContext) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextClass();
+      }
+      
+      const targetVolume = (state.acHumVolume / 100) * 0.06;
+      
+      if (targetVolume > 0) {
+        if (!humOscillator) {
+          humOscillator = audioContext.createOscillator();
+          humGainNode = audioContext.createGain();
+          
+          // Hum low filter setup
+          const lowPass = audioContext.createBiquadFilter();
+          lowPass.type = 'lowpass';
+          lowPass.frequency.setValueAtTime(130, audioContext.currentTime);
+
+          humOscillator.type = 'sine';
+          humOscillator.frequency.setValueAtTime(50, audioContext.currentTime); // 50 Hz default Europe/Asia transformers hum
+          
+          humOscillator.connect(lowPass);
+          lowPass.connect(humGainNode);
+          humGainNode.connect(audioContext.destination);
+          
+          humOscillator.start();
+        }
+        // Fade in
+        humGainNode.gain.linearRampToValueAtTime(targetVolume, audioContext.currentTime + 0.3);
+      } else {
+        if (humOscillator) {
+          try {
+            humGainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+            setTimeout(() => {
+              if (humOscillator && state.acHumVolume === 0) {
+                humOscillator.stop();
+                humOscillator = null;
+                humGainNode = null;
+              }
+            }, 250);
+          } catch(e){}
+        }
+      }
+    }
+
+    // Custom Color Picker implementation variables
+    let currentPickerH = 165;
+    let currentPickerS = 0.91;
+    let currentPickerV = 0.98;
+
+    // HEX to RGB conversion
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    }
+
+    // RGB to HEX conversion
+    function rgbToHex(r, g, b) {
+      return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+    }
+
+    // HSV to RGB conversion
+    function hsvToRgb(h, s, v) {
+      let r, g, b;
+      let i = Math.floor(h / 60);
+      let f = h / 60 - i;
+      let p = v * (1 - s);
+      let q = v * (1 - f * s);
+      let t = v * (1 - (1 - f) * s);
+      switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
+      }
+      return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+      };
+    }
+
+    // RGB to HSV conversion
+    function rgbToHsv(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h, s, v = max;
+      const d = max - min;
+      s = max === 0 ? 0 : d / max;
+      if (max === min) {
+        h = 0;
+      } else {
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return {
+        h: Math.round(h * 360),
+        s: s,
+        v: v
+      };
+    }
+
+    // Colors mapping function from raw Hue angle rotation
+    function recomputeColors() {
+      // Recompute based on current RGB values or current picker values
+      const rgb = hsvToRgb(state.colorHue, currentPickerS, currentPickerV);
+      updateColorFromRgb(rgb.r, rgb.g, rgb.b);
+    }
+
+    function updateColorFromRgb(r, g, b, skipInputs = false) {
+      const hsv = rgbToHsv(r, g, b);
+      currentPickerH = hsv.h;
+      currentPickerS = hsv.s;
+      currentPickerV = hsv.v;
+      
+      const rInput = document.getElementById('picker-r');
+      const gInput = document.getElementById('picker-g');
+      const bInput = document.getElementById('picker-b');
+      
+      if (!skipInputs) {
+        if (rInput) rInput.value = r;
+        if (gInput) gInput.value = g;
+        if (bInput) bInput.value = b;
+      }
+      
+      const hueSlider = document.getElementById('picker-hue-slider');
+      if (hueSlider) hueSlider.value = hsv.h;
+      
+      const hex = rgbToHex(r, g, b);
+      
+      const indicatorGlowBox = document.getElementById('glow-color-box');
+      const indicatorGlowHex = document.getElementById('glow-color-hex');
+      const previewCircle = document.getElementById('picker-preview-circle');
+      
+      if (indicatorGlowBox) indicatorGlowBox.style.backgroundColor = hex;
+      if (indicatorGlowHex) {
+        indicatorGlowHex.innerText = hex;
+        indicatorGlowHex.style.color = hex;
+      }
+      if (previewCircle) previewCircle.style.backgroundColor = hex;
+      
+      // Inject CSS relative custom properties
+      document.documentElement.style.setProperty('--glow-color', hex);
+      document.documentElement.style.setProperty('--glow-color-rgb', `${r}, ${g}, ${b}`);
+      
+      const handle = document.getElementById('picker-sv-handle');
+      if (handle) {
+        handle.style.left = `${hsv.s * 100}%`;
+        handle.style.top = `${(1 - hsv.v) * 100}%`;
+      }
+      
+      drawSvCanvas();
+      
+      state.colorHue = hsv.h;
+      state.primaryColor = `rgba(${r}, ${g}, ${b}, 1)`;
+      
+      // Calculate secondaryColor as a slightly adjusted saturation / lightness version
+      const sComp = Math.max(0.1, hsv.s * 0.9);
+      const vComp = Math.max(0.1, hsv.v * 0.85);
+      const secondaryRgb = hsvToRgb((hsv.h + 345) % 360, sComp, vComp);
+      state.secondaryColor = `rgba(${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}, 0.85)`;
+      
+      // Calculate dynamic contrasting tickColor (triadic contrast shift of 150 degrees)
+      const tickH = (hsv.h + 150) % 360;
+      const tickRgb = hsvToRgb(tickH, Math.max(0.65, hsv.s), Math.max(0.75, hsv.v));
+      state.tickColor = `rgba(${tickRgb.r}, ${tickRgb.g}, ${tickRgb.b}, 0.9)`;
+      
+      if (!state.nonQuarterColorCustomized) {
+        const hexVal = rgbToHex(tickRgb.r, tickRgb.g, tickRgb.b);
+        state.nonQuarterColor = hexVal;
+        const picker = document.getElementById('nonquarter-color-picker');
+        if (picker) picker.value = hexVal;
+      }
+      
+      // Sync bottom panel ambient radial background blur glows
+      const glowingBackdropColorStr = `rgba(${r}, ${g}, ${b}, 0.08)`;
+      const ambientGlow = document.getElementById('ambient-orange-glow');
+      if (ambientGlow) {
+        ambientGlow.style.background = `radial-gradient(circle at 50% 50%, ${glowingBackdropColorStr}, transparent 70%)`;
+      }
+      
+      const marker = document.getElementById('hue-knob-marker');
+      if (marker) {
+        marker.style.transform = `rotate(${hsv.h}deg)`;
+      }
+    }
+
+    // Draw Saturation-Value Canvas
+    function drawSvCanvas() {
+      const canvas = document.getElementById('picker-sv-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      
+      // Fill base with Hue
+      ctx.fillStyle = `hsl(${currentPickerH}, 100%, 50%)`;
+      ctx.fillRect(0, 0, w, h);
+      
+      // Horizontal white gradient
+      const whiteGrad = ctx.createLinearGradient(0, 0, w, 0);
+      whiteGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      whiteGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = whiteGrad;
+      ctx.fillRect(0, 0, w, h);
+      
+      // Vertical black gradient
+      const blackGrad = ctx.createLinearGradient(0, 0, 0, h);
+      blackGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      blackGrad.addColorStop(1, 'rgba(0, 0, 0, 1)');
+      ctx.fillStyle = blackGrad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Apply quick styled design look presets
+    function applyPreset(name) {
+      const p = presets[name];
+      if (!p) return;
+      
+      state.glowRange = p.glow;
+      state.transitionSpeed = p.speed;
+      
+      // Update custom hand colors
+      if (p.hourHand) {
+        state.hourHandColor = p.hourHand;
+        const picker = document.getElementById('hour-color-picker');
+        if (picker) picker.value = p.hourHand;
+      }
+      if (p.minuteHand) {
+        state.minuteHandColor = p.minuteHand;
+        const picker = document.getElementById('minute-color-picker');
+        if (picker) picker.value = p.minuteHand;
+      }
+      if (p.secondHand) {
+        state.secondHandColor = p.secondHand;
+        const picker = document.getElementById('second-color-picker');
+        if (picker) picker.value = p.secondHand;
+      }
+
+      // Update custom short light bar colors
+      if (p.lightBarA) {
+        state.lightBarColorA = p.lightBarA;
+        const picker = document.getElementById('lightbar-color-a-picker');
+        if (picker) picker.value = p.lightBarA;
+      }
+      if (p.lightBarB) {
+        state.lightBarColorB = p.lightBarB;
+        const picker = document.getElementById('lightbar-color-b-picker');
+        if (picker) picker.value = p.lightBarB;
+      }
+
+      // Update non-quarter ticks/hours colors
+      if (p.nonQuarter) {
+        state.nonQuarterColor = p.nonQuarter;
+        state.nonQuarterColorCustomized = false;
+        const picker = document.getElementById('nonquarter-color-picker');
+        if (picker) picker.value = p.nonQuarter;
+      }
+
+      // Sync interface input controls
+      document.getElementById('glow-slider').value = p.glow;
+      document.getElementById('glow-percent-label').innerText = p.glow + '%';
+      
+      document.getElementById('speed-slider').value = p.speed;
+      document.getElementById('decay-label').innerText = p.speed + 'ms';
+      
+      // Presets are full saturation full value
+      const targetRgb = hsvToRgb(p.hue, 1.0, 0.98);
+      updateColorFromRgb(targetRgb.r, targetRgb.g, targetRgb.b);
+      
+      triggerRelaySound();
+    }
+
+    // Dynamic visual local preview renderer for settings modal
+    function renderPreviewComponents(timeMs) {
+      if (!state.power) {
+        // Clear canvases if system power is cut
+        const nixieCanvas = document.getElementById('preview-nixie-canvas');
+        if (nixieCanvas) {
+          const ctx = nixieCanvas.getContext('2d');
+          ctx.clearRect(0, 0, nixieCanvas.width, nixieCanvas.height);
+        }
+        const analogCanvas = document.getElementById('preview-analog-canvas');
+        if (analogCanvas) {
+          const ctx = analogCanvas.getContext('2d');
+          ctx.clearRect(0, 0, analogCanvas.width, analogCanvas.height);
+        }
+        return;
+      }
+
+      // 1. Live Nixie Digit '5' preview canvas
+      const nixieCanvas = document.getElementById('preview-nixie-canvas');
+      if (nixieCanvas) {
+        const ctx = nixieCanvas.getContext('2d');
+        const w = nixieCanvas.width;
+        const h = nixieCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Glass capsule casing
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(3, h - 3);
+        ctx.lineTo(3, 14);
+        ctx.quadraticCurveTo(3, 3, w/2, 3);
+        ctx.quadraticCurveTo(w - 3, 3, w - 3, 14);
+        ctx.lineTo(w - 3, h - 3);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        // Mesh grid
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+        ctx.lineWidth = 0.8;
+        for (let x = 6; x < w - 6; x += 4) {
+          ctx.beginPath();
+          ctx.moveTo(x, 6);
+          ctx.lineTo(x, h - 6);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Active Digit 5 vector drawing
+        const cx = w / 2;
+        const cy = h / 2 + 2;
+        const rx = w * 0.32;
+        const ry = h * 0.31;
+        const factor = state.glowRange / 35;
+        const noise = (Math.random() - 0.5) * (0.0125 * (100 - state.glowRange)/20);
+        const opacityMultiplier = 1.0 + noise;
+
+        // Outer soft orange-glow gas envelope
+        ctx.save();
+        ctx.strokeStyle = state.secondaryColor;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = opacityMultiplier * 0.22;
+        ctx.lineWidth = 7.5 * factor;
+        ctx.shadowColor = state.secondaryColor;
+        ctx.shadowBlur = (state.glowRange + 4) * 0.7 * factor;
+        if (digitDrawings['5']) digitDrawings['5'](ctx, cx, cy, rx, ry);
+        ctx.restore();
+
+        // Inner glowing core plasma discharge
+        ctx.save();
+        ctx.strokeStyle = state.primaryColor;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = opacityMultiplier * 0.84;
+        ctx.lineWidth = 2.6 * factor;
+        ctx.shadowColor = state.primaryColor;
+        ctx.shadowBlur = 8 * factor;
+        if (digitDrawings['5']) digitDrawings['5'](ctx, cx, cy, rx, ry);
+        ctx.restore();
+
+        // High intensity hot white titanium metal filament core
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = opacityMultiplier * 0.95;
+        ctx.lineWidth = 0.95;
+        if (digitDrawings['5']) digitDrawings['5'](ctx, cx, cy, rx, ry);
+        ctx.restore();
+      }
+
+      // 2. Live Analog Dial '6' section arc segment preview with Christmas lights (Fig 2 matching)
+      const analogCanvas = document.getElementById('preview-analog-canvas');
+      if (analogCanvas) {
+        const ctx = analogCanvas.getContext('2d');
+        const w = analogCanvas.width;
+        const h = analogCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = -8; // curved top-down
+        const radius = 66;
+        const factor = state.glowRange / 35;
+
+        // Draw primary active glowing clock dial ring arc (orange base)
+        ctx.save();
+        ctx.strokeStyle = state.primaryColor;
+        ctx.shadowColor = state.primaryColor;
+        ctx.shadowBlur = (state.glowRange * 0.25 + 5) * factor;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0.35 * Math.PI, 0.65 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw sleek secondary outer outline glow
+        ctx.save();
+        ctx.strokeStyle = state.secondaryColor;
+        ctx.shadowColor = state.secondaryColor;
+        ctx.shadowBlur = state.glowRange * 0.45;
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 3, 0.35 * Math.PI, 0.65 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // Center Arabic '5' in high-contrast non-quarter color
+        ctx.save();
+        ctx.fillStyle = state.nonQuarterColor;
+        ctx.shadowColor = state.nonQuarterColor;
+        ctx.shadowBlur = 12 * factor;
+        ctx.font = 'bold 21px "JetBrains Mono",monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('5', cx, cy + radius - 24);
+        ctx.restore();
+
+        // Thick glowing neon indicator tick line `|` below "5" in high-contrast non-quarter color
+        ctx.save();
+        ctx.strokeStyle = state.nonQuarterColor;
+        ctx.shadowColor = state.nonQuarterColor;
+        ctx.shadowBlur = 8 * factor;
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + radius - 15);
+        ctx.lineTo(cx, cy + radius - 4);
+        ctx.stroke();
+        ctx.restore();
+
+        // Little Christmas style twinkling colored lights on either side (Fig 2 matching)
+        ctx.save();
+        const leftBeadAngle = 0.43 * Math.PI;
+        const rightBeadAngle = 0.57 * Math.PI;
+        const flashSeed = timeMs * 0.0018;
+        
+        // Green light on the left
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(leftBeadAngle) * (radius + 2), cy + Math.sin(leftBeadAngle) * (radius + 2), 2.2, 0, Math.PI * 2);
+        const beadB = state.lightBarColorB || '#10b981';
+        ctx.fillStyle = beadB;
+        ctx.shadowColor = beadB;
+        ctx.shadowBlur = 5 + 4 * Math.abs(Math.sin(flashSeed));
+        ctx.fill();
+
+        // Red light on the right
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(rightBeadAngle) * (radius + 2), cy + Math.sin(rightBeadAngle) * (radius + 2), 2.2, 0, Math.PI * 2);
+        const beadA = state.lightBarColorA || '#f43f5e';
+        ctx.fillStyle = beadA;
+        ctx.shadowColor = beadA;
+        ctx.shadowBlur = 5 + 4 * Math.abs(Math.cos(flashSeed));
+        ctx.fill();
+        ctx.restore();
+
+        // Secondary small helper ticks
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 0.8;
+        const previewsAngles = [0.38 * Math.PI, 0.48 * Math.PI, 0.52 * Math.PI, 0.62 * Math.PI];
+        previewsAngles.forEach(ang => {
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * (radius - 3), cy + Math.sin(ang) * (radius - 3));
+          ctx.lineTo(cx + Math.cos(ang) * (radius + 3), cy + Math.sin(ang) * (radius + 3));
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+    }
+
+    function renderAnalogClock(timeMs) {
+      const canvas = document.getElementById('analog-clock');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = w / 2 - 52;
+
+      // Draw shadow and ambient light halo behind the analog dial
+      if (state.power) {
+        ctx.save();
+        const haloGrad = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius * 1.08);
+        const glowColorRgb = state.primaryColor.replace('1)', '0.12');
+        haloGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        haloGrad.addColorStop(0.7, glowColorRgb);
+        haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = haloGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // (Note: Steampunk gears removed completely for a pristine look)
+
+      // 1. Draw outer primary dark metallic physical frame / bezel
+      ctx.save();
+      ctx.shadowBlur = state.power ? (state.glowRange * 0.25 + 6) : 0;
+      ctx.shadowColor = state.primaryColor;
+      ctx.strokeStyle = state.power ? state.primaryColor : 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Outer metallic steel rim border
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. High-Fidelity Christmas Radial Glow Bar Slots (外框耶誕閃燈光點優化：精緻短光條陣列，與外框維持間距)
+      if (state.power) {
+        ctx.save();
+        const totalBars = 180;
+        // Super slow elegant coordinate rotation (reduced by 50% for high stability and premium feel)
+        const travelSpeed = timeMs * 0.000075;
+        
+        for (let i = 0; i < totalBars; i++) {
+          const ang = (Math.PI * 2 / totalBars) * i + travelSpeed;
+          
+          // Gap of 6px from outer bezel, and bar length increased by an additional 15% (from 11px to 12.65px)
+          const rInner = radius + 6;
+          const rOuter = radius + 18.65;
+          const x1 = cx + Math.cos(ang) * rInner;
+          const y1 = cy + Math.sin(ang) * rInner;
+          const x2 = cx + Math.cos(ang) * rOuter;
+          const y2 = cy + Math.sin(ang) * rOuter;
+          
+          // Chasing/Alternating scheme between Color A and Color B
+          const isColorA = (i % 2 === 0);
+          const lightColor = isColorA ? (state.lightBarColorA || '#f43f5e') : (state.lightBarColorB || '#10b981');
+          
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          
+          // Slow breathing twinkle pulse
+          const pulse = 0.5 + 0.5 * Math.sin(timeMs * 0.0012 + i * 0.85);
+          
+          ctx.strokeStyle = lightColor;
+          ctx.lineWidth = 2.1;
+          ctx.lineCap = 'round';
+          ctx.shadowColor = lightColor;
+          ctx.shadowBlur = 8 * pulse;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2B. Outer Symmetric Bezel & Rim containment (外圈短光條外部 相同間距的外圓框)
+        // Outer metallic steel rim border
+        ctx.save();
+        ctx.globalAlpha = state.outerRimOpacity !== undefined ? state.outerRimOpacity : 0.8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 0.75;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 20.65, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Outer primary dark metallic physical frame / bezel
+        ctx.save();
+        ctx.globalAlpha = state.outerRimOpacity !== undefined ? state.outerRimOpacity : 0.8;
+        ctx.shadowBlur = state.power ? (state.glowRange * 0.25 + 6) : 0;
+        ctx.shadowColor = state.primaryColor;
+        ctx.strokeStyle = state.power ? state.primaryColor : 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1.75;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 24.65, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3. Draw physical rivets/screws on the frame (30 degrees step)
+      ctx.save();
+      ctx.fillStyle = 'rgba(251, 146, 60, 0.45)';
+      for (let i = 0; i < 12; i++) {
+        const ang = (Math.PI / 6) * i;
+        const rx_pos = cx + Math.cos(ang) * radius;
+        const ry_pos = cy + Math.sin(ang) * radius;
+        ctx.beginPath();
+        ctx.arc(rx_pos, ry_pos, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.arc(rx_pos, ry_pos, 2.2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 4. Draw Dial face indicators (ticks) - Colorful and highly styled
+      ctx.save();
+      for (let i = 0; i < 60; i++) {
+        const ang = (Math.PI / 30) * i;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(ang);
+
+        if (i % 5 === 0) {
+          // Hour markers
+          if (i % 15 === 0) {
+            // Quarter marks (12, 3, 6, 9 alignment quarters)
+            ctx.strokeStyle = state.power ? state.primaryColor : 'rgba(255, 255, 255, 0.3)';
+            ctx.shadowColor = state.power ? state.primaryColor : 'transparent';
+            ctx.shadowBlur = state.power ? 6 : 0;
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(radius - (radius * 0.11), 0);
+            ctx.lineTo(radius - (radius * 0.02), 0);
+            ctx.stroke();
+          } else {
+            // General hour marks
+            ctx.strokeStyle = state.power ? state.nonQuarterColor : 'rgba(255, 255, 255, 0.2)';
+            ctx.shadowColor = state.power ? state.nonQuarterColor : 'transparent';
+            ctx.shadowBlur = state.power ? 4 : 0;
+            ctx.lineWidth = 2.0;
+            ctx.beginPath();
+            ctx.moveTo(radius - (radius * 0.08), 0);
+            ctx.lineTo(radius - (radius * 0.02), 0);
+            ctx.stroke();
+          }
+        } else {
+          // Micro minute markers (Increased size, default to glowing white circle, with glow effect)
+          const isPower = state.power;
+          if (isPower) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.45)';
+            ctx.shadowBlur = 6;
+          } else {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+          }
+          ctx.beginPath();
+          ctx.arc(radius - (radius * 0.05), 0, 2.0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // 5. Draw sleek glowing Arabic numbers (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12) for all hours in high-contrast tick color
+      if (state.power) {
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.font = `bold ${Math.round(radius * 0.115)}px "JetBrains Mono",monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        for (let num = 1; num <= 12; num++) {
+          const angle = (num * Math.PI / 6) - Math.PI / 2;
+          const textDistance = radius - (radius * 0.19);
+          const tx = cx + Math.cos(angle) * textDistance;
+          const ty = cy + Math.sin(angle) * textDistance;
+          
+          if (num % 3 === 0) {
+            ctx.fillStyle = state.primaryColor;
+            ctx.shadowColor = state.primaryColor;
+          } else {
+            ctx.fillStyle = state.nonQuarterColor;
+            ctx.shadowColor = state.nonQuarterColor;
+          }
+          ctx.fillText(num.toString(), tx, ty);
+        }
+        ctx.restore();
+      }
+
+      // Calculate time components
+      const dObj = new Date();
+      const h_curr = dObj.getHours();
+      const m_curr = dObj.getMinutes();
+      const s_curr = dObj.getSeconds();
+      const ms_curr = dObj.getMilliseconds();
+
+      // Compute geometric angles based on sweeping movement formulas
+      const hrAngle = ((h_curr % 12) + m_curr / 60) * (Math.PI / 6) - Math.PI / 2;
+      const mnAngle = (m_curr + s_curr / 60) * (Math.PI / 30) - Math.PI / 2;
+      // Beautiful sweeping seconds vector
+      const scAngle = (s_curr + ms_curr / 1000) * (Math.PI / 30) - Math.PI / 2;
+
+      if (!state.power) {
+        // Draw centered idle hands pointing to 12
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineCap = 'round';
+        // Idle hour
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx, cy - radius * 0.45);
+        ctx.stroke();
+        // Idle minute
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx, cy - radius * 0.65);
+        ctx.stroke();
+        // Centered copper cap
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      // 6. Draw HOUR HAND (Recolored: customizable luxury 3D finish)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(hrAngle);
+      const hrColor = state.hourHandColor || '#f59e0b';
+      ctx.strokeStyle = hrColor;
+      ctx.shadowColor = hrColor;
+      ctx.shadowBlur = 15;
+      ctx.lineWidth = 3.6;
+      
+      ctx.fillStyle = hrColor;
+      ctx.beginPath();
+      ctx.moveTo(-15, 0);
+      ctx.lineTo(0, -6.5);
+      ctx.lineTo(radius * 0.46, -1.8);
+      ctx.lineTo(radius * 0.54, 0); // diamond pointer tip
+      ctx.lineTo(radius * 0.46, 1.8);
+      ctx.lineTo(0, 6.5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+
+      // Metallic highlighting 3D overlay for Hour hand
+      const hrHighlight = ctx.createLinearGradient(0, -6.5, 0, 6.5);
+      hrHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+      hrHighlight.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+      hrHighlight.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+      ctx.fillStyle = hrHighlight;
+      ctx.fill();
+
+      ctx.restore();
+
+      // 7. Draw MINUTE HAND (Recolored: customizable luxury 3D finish)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(mnAngle);
+      const mnColor = state.minuteHandColor || '#f1f5f9';
+      ctx.strokeStyle = mnColor;
+      ctx.shadowColor = mnColor;
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 2.5;
+
+      ctx.fillStyle = mnColor;
+      ctx.beginPath();
+      ctx.moveTo(-20, 0);
+      ctx.lineTo(0, -4.5);
+      ctx.lineTo(radius * 0.72, -1.2);
+      ctx.lineTo(radius * 0.81, 0);
+      ctx.lineTo(radius * 0.72, 1.2);
+      ctx.lineTo(0, 4.5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+
+      // Metallic highlighting 3D overlay for Minute hand
+      const mnHighlight = ctx.createLinearGradient(0, -4.5, 0, 4.5);
+      mnHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+      mnHighlight.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+      mnHighlight.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+      ctx.fillStyle = mnHighlight;
+      ctx.fill();
+
+      ctx.restore();
+
+      // 8. Draw SECOND HAND (Recolored: customizable instrumentation sweep pointer)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(scAngle);
+      const scColor = state.secondHandColor || '#f43f5e';
+      ctx.strokeStyle = scColor;
+      ctx.fillStyle = scColor;
+      ctx.shadowColor = scColor;
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 1.4;
+
+      // Pointer shaft
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.22, 0);
+      ctx.lineTo(radius * 0.84, 0);
+      ctx.stroke();
+
+      // Counter-balance circle at tail
+      ctx.beginPath();
+      ctx.arc(-radius * 0.18, 0, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Secondary center needle shaft indicator hub
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 9. Draw central metallic cap hub
+      ctx.save();
+      ctx.translate(cx, cy);
+      const capGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, 8);
+      capGrad.addColorStop(0, '#fef08a'); // golden yellow
+      capGrad.addColorStop(0.3, '#ca8a04'); // aged brass
+      capGrad.addColorStop(1, '#1c1917'); // dark background metal
+      ctx.fillStyle = capGrad;
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Beveled cover screws ring circle
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Core Animation loop time tracker
+    let lastTime = performance.now();
+    
+    function tick() {
+      const now = performance.now();
+      const dt = now - lastTime;
+      lastTime = now;
+
+      // Date update logic
+      const dObj = new Date();
+      const hours = dObj.getHours();
+      const minutes = dObj.getMinutes();
+      const seconds = dObj.getSeconds();
+      const milliseconds = dObj.getMilliseconds();
+
+      // Render Analog Clock Face Layout on every frame refresh
+      renderAnalogClock(now);
+
+      // Render Dynamic live settings parameters preview canvas components
+      renderPreviewComponents(now);
+
+      // Formatted digits strings
+      let hourStr = hours.toString().padStart(2, '0');
+      if (!state.format24h) {
+        let display12Hour = hours % 12;
+        if (display12Hour === 0) display12Hour = 12;
+        hourStr = display12Hour.toString().padStart(2, '0');
+      }
+      const minStr = minutes.toString().padStart(2, '0');
+      const secStr = seconds.toString().padStart(2, '0');
+
+      if (state.isCleaning) {
+        // Cleaning rapid sweep of electrodes mode active to scrub cathode sputtering buildup
+        state.cleanTimer += dt;
+        const indexShift = Math.floor(state.cleanTimer / 110) % 10;
+        
+        tubes.forEach((t, i) => {
+          t.setVal(((indexShift + i) % 10).toString());
+        });
+        
+        if (state.cleanTimer > 3200) {
+          state.isCleaning = false;
+          state.cleanTimer = 0;
+          document.getElementById('system-status-msg').innerText = 'Model LT-24 Virtual Cathode';
+          document.getElementById('system-status-msg').className = 'text-[10px] tracking-widest text-white/40 uppercase font-mono';
+        }
+      } else if (state.power) {
+        // Set standard times
+        tubes[0].setVal(hourStr[0]);
+        tubes[1].setVal(hourStr[1]);
+        tubes[2].setVal(minStr[0]);
+        tubes[3].setVal(minStr[1]);
+        tubes[4].setVal(secStr[0]);
+        tubes[5].setVal(secStr[1]);
+
+        // Blinking colon lights breathing rhythm synchronization
+        const colonGlow = Math.sin(milliseconds * 0.00314) > 0;
+        state.colonsStatus = colonGlow;
+        
+        const colons = [
+          document.getElementById('colon-1-upper'),
+          document.getElementById('colon-1-lower'),
+          document.getElementById('colon-2-upper'),
+          document.getElementById('colon-2-lower')
+        ];
+        
+        colons.forEach(col => {
+          if (col) {
+            if (colonGlow) {
+              col.style.opacity = '1.0';
+              col.style.boxShadow = `0 0 10px ${state.primaryColor}`;
+              col.style.backgroundColor = state.primaryColor;
+            } else {
+              col.style.opacity = '0.35';
+              col.style.boxShadow = 'none';
+              col.style.backgroundColor = 'rgba(249, 115, 22, 0.4)';
+            }
+          }
+        });
+      }
+
+      // Update and draw each Nixie tube
+      tubes.forEach(t => {
+        t.update(dt);
+        t.draw();
+      });
+
+      // System Status elements updates
+      if (seconds !== state.lastTickSecond) {
+        state.lastTickSecond = seconds;
+        
+        // System Temperature fluctuations
+        const dynamicTemp = (31.5 + (Math.sin(now / 5000) * 1.2) + Math.random() * 0.15).toFixed(1);
+        const tempEl = document.getElementById('system-temp');
+        if (tempEl) tempEl.innerText = dynamicTemp + '°C';
+        
+        // Voltage instability simulation
+        const baseVolt = state.power ? 170.0 : 0.0;
+        const dynamicVolt = state.power 
+          ? (baseVolt + (Math.sin(now / 1500) * 0.6) + (Math.random() - 0.5) * 0.35).toFixed(1)
+          : '0.0';
+        const voltEl = document.getElementById('live-voltage-val');
+        if (voltEl) voltEl.innerText = dynamicVolt + ' V';
+
+        // Uptime clocks counter
+        const uptimeSeconds = Math.floor((Date.now() - state.startTime) / 1000);
+        const formatUptime = (s) => {
+          const hours = Math.floor(s / 3600).toString().padStart(2, '0');
+          const minutes = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+          const secs = (s % 60).toString().padStart(2, '0');
+          return `${hours}:${minutes}:${secs}`;
+        };
+        const uptimeEl = document.getElementById('uptime-clock');
+        if (uptimeEl) uptimeEl.innerText = formatUptime(uptimeSeconds);
+        
+        // Date indicator overlay
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dateStr = `${dObj.getFullYear()}.${(dObj.getMonth()+1).toString().padStart(2,'0')}.${dObj.getDate().toString().padStart(2,'0')} / ${days[dObj.getDay()]}`;
+        const dateEl = document.getElementById('live-date');
+        if (dateEl) dateEl.innerText = `-- ${dateStr} --`;
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // Modal Display Trigger toggles
+    document.getElementById('open-settings-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.remove('hidden');
+      triggerRelaySound();
+    });
+
+    document.getElementById('close-settings-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('hidden');
+      triggerRelaySound();
+    });
+
+    document.getElementById('settings-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('settings-modal')) {
+        document.getElementById('settings-modal').classList.add('hidden');
+        triggerRelaySound();
+      }
+    });
+
+    // Attach event interface interaction listener actions
+    document.getElementById('glow-slider').addEventListener('input', (e) => {
+      state.glowRange = parseInt(e.target.value);
+      const glowLabel = document.getElementById('glow-percent-label');
+      if (glowLabel) glowLabel.innerText = e.target.value + '%';
+    });
+
+    document.getElementById('speed-slider').addEventListener('input', (e) => {
+      state.transitionSpeed = parseInt(e.target.value);
+      const decayLabel = document.getElementById('decay-label');
+      if (decayLabel) decayLabel.innerText = e.target.value + 'ms';
+    });
+
+    document.getElementById('hum-slider').addEventListener('input', (e) => {
+      state.acHumVolume = parseInt(e.target.value);
+      const humLabel = document.getElementById('hum-label');
+      if (state.acHumVolume > 0) {
+        initOrUpdateHumSynth();
+        if (humLabel) humLabel.innerText = e.target.value + '%';
+      } else {
+        if (humLabel) humLabel.innerText = 'OFF';
+        initOrUpdateHumSynth();
+      }
+    });
+
+    // Custom individual hand color pickers listeners
+    document.getElementById('hour-color-picker').addEventListener('input', (e) => {
+      state.hourHandColor = e.target.value;
+    });
+
+    document.getElementById('minute-color-picker').addEventListener('input', (e) => {
+      state.minuteHandColor = e.target.value;
+    });
+
+    document.getElementById('second-color-picker').addEventListener('input', (e) => {
+      state.secondHandColor = e.target.value;
+    });
+
+    document.getElementById('lightbar-color-a-picker').addEventListener('input', (e) => {
+      state.lightBarColorA = e.target.value;
+    });
+
+    document.getElementById('lightbar-color-b-picker').addEventListener('input', (e) => {
+      state.lightBarColorB = e.target.value;
+    });
+
+    document.getElementById('nonquarter-color-picker').addEventListener('input', (e) => {
+      state.nonQuarterColor = e.target.value;
+      state.nonQuarterColorCustomized = true;
+    });
+
+    document.getElementById('outer-rim-opacity-slider').addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      state.outerRimOpacity = val / 100.0;
+      const label = document.getElementById('outer-rim-opacity-label');
+      if (label) label.innerText = val + '%';
+    });
+
+    // Touch/click rotation dial for Color Hue system
+    let currentRotateValue = 30;
+    document.getElementById('hue-knob').addEventListener('click', () => {
+      currentRotateValue = (currentRotateValue + 45) % 360;
+      state.colorHue = currentRotateValue;
+      const hueMarker = document.getElementById('hue-knob-marker');
+      if (hueMarker) hueMarker.style.transform = `rotate(${currentRotateValue}deg)`;
+      recomputeColors();
+      triggerRelaySound();
+    });
+
+    // Power Trigger Switch button action with robust null-checks
+    document.getElementById('power-toggle-btn').addEventListener('click', () => {
+      state.power = !state.power;
+      
+      const btn = document.getElementById('power-toggle-btn');
+      const powerDot = document.getElementById('power-indicator');
+      const label = document.getElementById('power-toggle-label');
+      
+      if (state.power) {
+        if (btn) btn.className = 'w-12 h-12 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-emerald-950/40 shadow-[0_0_20px_rgba(16,185,129,0.5),inset_0_0_8px_rgba(16,185,129,0.3)] active:scale-90 cursor-pointer transition-all hover:bg-emerald-500 hover:text-black text-emerald-400';
+        if (powerDot) {
+          powerDot.classList.add('bg-emerald-500');
+          powerDot.classList.remove('bg-white/10');
+        }
+        if (label) {
+          label.innerText = 'SYS POWER';
+          label.className = 'text-[10px] font-mono text-emerald-500 font-bold uppercase';
+        }
+        const syncStatus = document.getElementById('sync-status');
+        if (syncStatus) {
+          syncStatus.innerText = 'Nominal';
+          syncStatus.className = 'text-xs md:text-sm font-mono text-emerald-400 uppercase tracking-wider';
+        }
+        initOrUpdateHumSynth();
+        triggerRelaySound();
+      } else {
+        if (btn) btn.className = 'w-12 h-12 rounded-full border border-white/10 flex items-center justify-center bg-black active:scale-90 cursor-pointer transition-all hover:border-emerald-500/20 text-emerald-500/30';
+        if (powerDot) {
+          powerDot.classList.remove('bg-emerald-500');
+          powerDot.classList.add('bg-white/10');
+        }
+        if (label) {
+          label.innerText = 'SYS HALTED';
+          label.className = 'text-[10px] font-mono text-red-500/70 font-bold uppercase';
+        }
+        const syncStatus = document.getElementById('sync-status');
+        if (syncStatus) {
+          syncStatus.innerText = 'Offline';
+          syncStatus.className = 'text-xs md:text-sm font-mono text-red-500 uppercase tracking-wider';
+        }
+        
+        // Turn off hum sound if power cut
+        if (humOscillator) {
+          try {
+            humGainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          } catch(e){}
+        }
+      }
+    });
+
+    // Mode Knob selection switcher (12H / 24H formats toggle)
+    let currentModeRotateValue = 0;
+    document.getElementById('mode-knob').addEventListener('click', () => {
+      currentModeRotateValue = (currentModeRotateValue + 180) % 360;
+      state.format24h = !state.format24h;
+      document.getElementById('mode-knob-marker').style.transform = `rotate(${currentModeRotateValue}deg)`;
+      document.getElementById('label-mode-indicator').innerText = state.format24h ? 'MODE: 24H' : 'MODE: 12H';
+      triggerRelaySound();
+    });
+
+    // Electrode Sweep Manual trigger handler
+    document.getElementById('cleaner-btn').addEventListener('click', () => {
+      if (state.isCleaning) return;
+      state.isCleaning = true;
+      state.cleanTimer = 0;
+      document.getElementById('system-status-msg').innerText = 'CLEANING ELECTRODES...';
+      document.getElementById('system-status-msg').className = 'text-[10px] tracking-widest text-orange-400 uppercase font-mono animate-pulse';
+      triggerRelaySound();
+    });
+
+    // Chime Toggle Action
+    document.getElementById('chime-toggle-btn').addEventListener('click', () => {
+      state.relaySoundEnabled = !state.relaySoundEnabled;
+      
+      const btn = document.getElementById('chime-toggle-btn');
+      const dot = document.getElementById('chime-toggle-dot');
+      const label = document.getElementById('chime-status-label');
+      
+      if (state.relaySoundEnabled) {
+        btn.classList.remove('bg-white/5', 'border-white/10');
+        btn.classList.add('bg-orange-500/15', 'border-orange-500/35');
+        dot.classList.remove('bg-white/30', 'translate-x-0');
+        dot.classList.add('bg-orange-500', 'translate-x-5');
+        label.innerText = 'ON';
+        label.classList.remove('text-white/30');
+        label.classList.add('text-orange-500');
+        
+        triggerRelaySound();
+      } else {
+        btn.classList.remove('bg-orange-500/15', 'border-orange-500/35');
+        btn.classList.add('bg-white/5', 'border-white/10');
+        dot.classList.remove('bg-orange-500', 'translate-x-5');
+        dot.classList.add('bg-white/30', 'translate-x-0');
+        label.innerText = 'OFF';
+        label.classList.remove('text-orange-500');
+        label.classList.add('text-white/30');
+      }
+    });
+
+    // Custom Color Picker Interactions
+    const colorTrigger = document.getElementById('glow-color-trigger');
+    const colorPopup = document.getElementById('custom-color-picker-popup');
+    const svCanvasContainer = document.getElementById('sv-canvas-container');
+    const hueSlider = document.getElementById('picker-hue-slider');
+    const inputR = document.getElementById('picker-r');
+    const inputG = document.getElementById('picker-g');
+    const inputB = document.getElementById('picker-b');
+    const eyedropperBtn = document.getElementById('picker-eyedropper');
+
+    // Toggle color picker popover open state
+    colorTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = colorPopup.classList.toggle('hidden');
+      if (!isHidden) {
+        drawSvCanvas();
+      }
+    });
+
+    // Prevent popover close when user interacts with color picker controls
+    colorPopup.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Close popover when clicking anywhere else on page
+    document.addEventListener('click', () => {
+      if (colorPopup && !colorPopup.classList.contains('hidden')) {
+        colorPopup.classList.add('hidden');
+      }
+    });
+
+    // SV canvas mouse/touch dragging tracker
+    let isDraggingSv = false;
+
+    function handleSvUpdate(e) {
+      if (!svCanvasContainer) return;
+      const rect = svCanvasContainer.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      let x = clientX - rect.left;
+      let y = clientY - rect.top;
+
+      x = Math.max(0, Math.min(rect.width, x));
+      y = Math.max(0, Math.min(rect.height, y));
+
+      currentPickerS = x / rect.width;
+      currentPickerV = (rect.height - y) / rect.height;
+
+      const rgb = hsvToRgb(currentPickerH, currentPickerS, currentPickerV);
+      updateColorFromRgb(rgb.r, rgb.g, rgb.b);
+    }
+
+    svCanvasContainer.addEventListener('mousedown', (e) => {
+      isDraggingSv = true;
+      handleSvUpdate(e);
+    });
+
+    svCanvasContainer.addEventListener('touchstart', (e) => {
+      isDraggingSv = true;
+      handleSvUpdate(e);
+    }, { passive: true });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDraggingSv) handleSvUpdate(e);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDraggingSv) handleSvUpdate(e);
+    }, { passive: true });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingSv = false;
+    });
+
+    window.addEventListener('touchend', () => {
+      isDraggingSv = false;
+    });
+
+    // Hue slider update callback
+    hueSlider.addEventListener('input', (e) => {
+      currentPickerH = parseInt(e.target.value);
+      const rgb = hsvToRgb(currentPickerH, currentPickerS, currentPickerV);
+      updateColorFromRgb(rgb.r, rgb.g, rgb.b);
+    });
+
+    // RGB Numerical inputs update callbacks
+    function onRgbInputChange() {
+      let r = parseInt(inputR.value) || 0;
+      let g = parseInt(inputG.value) || 0;
+      let b = parseInt(inputB.value) || 0;
+
+      r = Math.max(0, Math.min(255, r));
+      g = Math.max(0, Math.min(255, g));
+      b = Math.max(0, Math.min(255, b));
+
+      inputR.value = r;
+      inputG.value = g;
+      inputB.value = b;
+
+      updateColorFromRgb(r, g, b, true);
+    }
+
+    inputR.addEventListener('input', onRgbInputChange);
+    inputG.addEventListener('input', onRgbInputChange);
+    inputB.addEventListener('input', onRgbInputChange);
+
+    // Eyedropper API Action if available
+    eyedropperBtn.addEventListener('click', async () => {
+      if (!window.EyeDropper) {
+        alert("Eyedropper API is not supported in this browser. Please use Google Chrome, Microsoft Edge, or a modern desktop browser.");
+        return;
+      }
+      try {
+        const eyeDropper = new window.EyeDropper();
+        const result = await eyeDropper.open();
+        const rgb = hexToRgb(result.sRGBHex);
+        if (rgb) {
+          updateColorFromRgb(rgb.r, rgb.g, rgb.b);
+        }
+      } catch (err) {
+        console.warn("Eyedropper cancelled or failed", err);
+      }
+    });
+
+    // Handle initial sizing and boot up routine loop
+    window.addEventListener('load', () => {
+      updateColorFromRgb(22, 249, 192);
+      requestAnimationFrame(tick);
+    });
+
+    // Optional user sound initialization by clicking any control Deck component or body to bypass modern browser audio autoplay bars
+    document.addEventListener('click', () => {
+      if (!audioContext) {
+        initOrUpdateHumSynth();
+      }
+    }, { once: true });
+  </script>
+
+</body>
+</html>

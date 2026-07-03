@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>時間心流 Flow Timekeeping</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --text-light: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            width: 90%;
+            padding-bottom: 50px;
+        }
+ 
+
+        .nav-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        
+        .nav-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            border-color: var(--accent);
+        }
+
+        .rounded-square-image {
+            width: 120px;
+            height: 120px;	
+			object-fit: cover;
+			border-radius: 10px; /* Adjust this value for more or less rounding */
+        }
+
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        .desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .badge {
+            background: #0ea5e9;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>時間心流 Flow Timekeeping</h1>
+        <p>Explore celestial rhythms and experimental timekeeping</p>
+    </header>
+
+    <div class="grid-container">
+        <a href="./2D螢光鐘.html" class="nav-card"> 
+			<img src="./images/icon_2D螢光鐘.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">2D螢光鐘</div>
+            <div class="desc">2D fluorescent clock.</div>
+        </a>
+
+        <a href="./2D輝光鍾.html" class="nav-card"> 
+			<img src="./images/icon_2DHuiClock.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">2D輝光鍾</div>
+            <div class="desc">2D Hui Clock.</div>
+        </a>
+
+
+        <a href="./2D霓虹鍾NeonClock.html" class="nav-card"> 
+			<img src="./images/icon_2D霓虹鍾.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">2D霓虹鍾NeonClock</div>
+            <div class="desc">2D Neon Clock.</div>
+        </a>
+
+        <a href="./3DGlowTubeClock.html" class="nav-card"> 
+			<img src="./images/icon_3D輝管鐘.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">3D輝光管鐘</div>
+            <div class="desc">3D Glow Tube Clock.</div>
+        </a>
+		
+
+        <a href="./slow-clock.html" class="nav-card"> 
+			<img src="./images/icon_slowclock.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">Slow Clock</div>
+            <div class="desc">A slower pace of life.</div>
+			
+        </a>		
+
+        <a href="./lunar_clock.html" class="nav-card"> 
+			<img src="./images/icon_lunartime.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">Lunar timekeeping</div>
+            <div class="desc">LST System: LUNAR STANDARD TIMEKEEPING SYSTEM.</div>
+        </a>	
+
+        <a href="./lunar_clock.html" class="nav-card"> 
+			<img src="./images/icon_starlightflyingclock.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">Orbital Clock</div>
+            <div class="desc">A new type of clock – the "orbital clock" – is inspired by the concept of planetary motion in the solar system.</div>
+			<div class="badge">Interactive</div>
+        </a>	
+
+
+        <a href="./lifejourneyclock.html" class="nav-card"> 
+			<img src="./images/icon_lifeclock.jpg" class="rounded-square-image" >
+			<div style="height: 0.2em;"></div>
+            <div class="title">Life Journey Clock</div>
+            <div class="desc">Life is a clock · Walking Through Time.</div>
+        </a>
+
+    </div>
+
+</body>
+ <script>
+    const currentHost = window.location.host;
+ 
+  </script> 
+
+</html>
