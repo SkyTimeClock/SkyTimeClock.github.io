@@ -117,6 +117,8 @@ body {
   flex: none; margin-top: 2px;
 }
 
+ 
+
 /* ═══════════════════════════════════════════
    MAIN CONTENT
 ═══════════════════════════════════════════ */
@@ -124,6 +126,7 @@ body {
   margin-left: var(--sidebar-w);
   max-width: calc(var(--sidebar-w) + var(--chapter-w) + 80px);
 }
+
 
 /* ── Hero ── */
 .hero {
@@ -575,9 +578,11 @@ tr:hover td { background: rgba(109,179,63,0.03); }
     <span class="chip">時間數學</span>
     <span class="chip">DPR / Retina</span>
     <span class="chip">走路動畫</span>
+	<button style="font-size: 12px;" onclick="history.back()">🔙GoBack </button>
   </div>
 
   <canvas class="hero-preview" id="heroMiniClock" width="160" height="160"></canvas>
+
 </section>
 
 <!-- ══════════════════════════════════════════
