@@ -37,7 +37,6 @@
             padding-bottom: 50px;
         }
  
-
         .nav-card {
             background: var(--card-bg);
             border-radius: 15px;
@@ -51,7 +50,6 @@
             align-items: center;
             text-align: center;
         }
-
         
         .nav-card:hover {
             transform: translateY(-5px);
@@ -91,6 +89,101 @@
             border-radius: 10px;
             margin-top: 10px;
         }
+
+        /* 哲理序文專屬樣式 */
+        .preface-section {
+            max-width: 800px;
+            width: 85%;
+            margin: 40px 0 80px 0;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .preface-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .preface-header h2 {
+            font-size: 1.8rem;
+            color: var(--accent);
+            margin: 0 0 10px 0;
+            letter-spacing: 2px;
+        }
+
+        .preface-header h3 {
+            font-size: 1.1rem;
+            font-weight: normal;
+            opacity: 0.6;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+
+        .preface-block {
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .preface-block .zh {
+            font-size: 1.05rem;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+            text-align: justify;
+        }
+
+        .preface-block .en {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: justify;
+            font-style: italic;
+        }
+
+        .preface-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(56, 189, 248, 0.3), transparent);
+            margin: 40px 0;
+        }
+
+        .features-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .feature-item {
+            margin-bottom: 25px;
+        }
+
+        .feature-item strong {
+            color: #f1f5f9;
+            font-size: 1.1rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .quote-block {
+            text-align: center;
+            margin: 40px 0 20px 0;
+            padding: 20px;
+            border-top: 1px dashed rgba(56, 189, 248, 0.2);
+        }
+
+        .quote-block .quote-zh {
+            font-size: 1.2rem;
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .quote-block .quote-en {
+            font-size: 1rem;
+            color: #64748b;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -117,7 +210,6 @@
 			<div class="badge">Interactive</div>
         </a>
 
-
         <a href="./2D霓虹鍾NeonClock.html" class="nav-card"> 
 			<img src="./images/icon_2D霓虹鍾.jpg" class="rounded-square-image" >
 			<div style="height: 0.2em;"></div>
@@ -134,7 +226,6 @@
 			<div class="badge">Interactive</div>
         </a>
 		
-
         <a href="./slow-clock.html" class="nav-card"> 
 			<img src="./images/icon_slowclock.jpg" class="rounded-square-image" >
 			<div style="height: 0.2em;"></div>
@@ -158,20 +249,72 @@
 			<div class="badge">Interactive</div>
         </a>	
 
-
         <a href="./lifejourneyclock.html" class="nav-card"> 
 			<img src="./images/icon_lifeclock.jpg" class="rounded-square-image" >
 			<div style="height: 0.2em;"></div>
             <div class="title">Life Journey Clock</div>
             <div class="desc">Life is a clock · Walking Through Time.</div>
         </a>
-
     </div>
 
-</body>
- <script>
-    const currentHost = window.location.host;
- 
-  </script> 
+    <!-- 哲理序文區塊 -->
+    <section class="preface-section">
+        <div class="preface-header">
+            <h2>序：時間的維度，是心流的刻度</h2>
+            <h3>Preface: The Dimension of Time is the Scale of Flow</h3>
+        </div>
 
+        <div class="preface-block">
+            <div class="zh">我們總以為時間是一把絕對的尺，冰冷地將宇宙切分成等長的秒、分、時。但實際上，時間從不是客觀的洪流，而是一場內在的<strong>感知盛宴</strong>。</div>
+            <div class="en">We often view time as an absolute ruler, coldly carving the universe into equal segments of seconds, minutes, and hours. In truth, however, time is never an objective torrent, but an internal <strong>feast of perception</strong>.</div>
+        </div>
+
+        <div class="preface-block">
+            <div class="zh">物理學上的時鐘，量測的是原子的震盪；而我們生命中的時鐘，量測的卻是<strong>靈魂的波動</strong>。當你全神貫注於熱愛的事物時，夕陽一瞬即逝；而在漫長而焦慮的等待中，一秒卻被拉扯得如同一世紀。時間的本質不是數字，而是一種<strong>知覺</strong>。它是光影在眼底的折射、是意識在宇宙中的流轉，是我們與這個世界相遇時，心靈激盪出的漣漪。</div>
+            <div class="en">Physical clocks measure the oscillation of atoms, but the clocks of our lives measure the <strong>fluctuations of the soul</strong>. When you are fully immersed in what you love, the sunset vanishes in a blink; yet in moments of anxious waiting, a single second stretches out like a century. The essence of time lies not in numbers, but in <strong>perception</strong>. It is the refraction of light and shadow in our eyes, the drift of consciousness through the cosmos, and the ripple stirred within the heart when we encounter the universe.</div>
+        </div>
+
+        <div class="preface-divider"></div>
+
+        <div class="features-title">關於「時間心流」 / About "Flow Timekeeping"</div>
+
+        <div class="feature-item">
+            <strong>光影的記憶 (Memories of Light and Shadow)</strong>
+            <div class="zh">螢光、霓虹與輝光管，用科技的微光捕捉時間的溫度，讓冰冷的數字有了呼吸的節奏。</div>
+            <div class="en">Fluorescent, neon, and glow tubes capture the warmth of time through technological glimmers, giving a breathing rhythm to otherwise cold digits.</div>
+        </div>
+
+        <div class="feature-item">
+            <strong>尺度的重塑 (Reshaping the Scale)</strong>
+            <div class="zh"><em>Slow Clock</em> 試圖打破現代社會的效率詛咒，邀請你將感官放慢，重拾生命的從容。</div>
+            <div class="en"><em>Slow Clock</em> seeks to break the curse of modern efficiency, inviting you to slow down your senses and reclaim the grace of living.</div>
+        </div>
+
+        <div class="feature-item">
+            <strong>宇宙的共振 (Cosmic Resonance)</strong>
+            <div class="zh"><em>Orbital Clock</em> 與 <em>Lunar timekeeping</em> 將我們的視線拉向星空，提醒我們，人類的知覺本就與太陽系的引力、月球的潮汐同頻共振。</div>
+            <div class="en"><em>Orbital Clock</em> and <em>Lunar timekeeping</em> lift our gaze to the stars, reminding us that human perception inherently resonates with the gravitational pull of the solar system and the tides of the moon.</div>
+        </div>
+
+        <div class="feature-item">
+            <strong>生命的步履 (The Journey of Life)</strong>
+            <div class="zh"><em>Life Journey Clock</em> 則是一面鏡子，將一生的漫長縮影於指針的轉動中，看見時間如何雕刻我們的存在。</div>
+            <div class="en"><em>Life Journey Clock</em> acts as a mirror, condensing the vastness of a lifetime into the sweep of a hand, revealing how time sculpts our very existence.</div>
+        </div>
+
+        <div class="quote-block">
+            <div class="quote-zh">「我們不只是活在時間裡，我們就是時間本身。」</div>
+            <div class="quote-en">"We do not merely live within time; we are time itself."</div>
+        </div>
+
+        <div class="preface-block" style="margin-top: 30px; text-align: center;">
+            <div class="zh" style="text-align: center;">時間不該是束縛心靈的框架。當你凝視這些不同的時鐘，不妨放下對精準秒數的執著。去感受光的閃爍、去體會軌道的運行、去凝視生命旅程的推移。在這裡，時間重新回歸於你的<strong>主觀知覺</strong>——它是一種心流，順著你的意識，緩緩流向無垠的星河。</div>
+            <div class="en" style="text-align: center;">Time should never be a framework that confines the mind. As you gaze upon these diverse clocks, consider letting go of the obsession with precise seconds. Feel the flicker of light, experience the movement of orbits, and contemplate the passage of life's journey. Here, time returns to your <strong>subjective perception</strong>—it becomes a flow, gently drifting along with your consciousness into the boundless river of stars.</div>
+        </div>
+    </section>
+
+</body>
+<script>
+    const currentHost = window.location.host;
+</script> 
 </html>
