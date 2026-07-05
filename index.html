@@ -184,6 +184,76 @@
             color: #64748b;
             font-style: italic;
         }
+
+        /* 音樂與歌詞專屬樣式 */
+        .music-player-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 40px;
+            padding: 15px;
+            background: rgba(56, 189, 248, 0.05);
+            border-radius: 30px;
+            border: 1px solid rgba(56, 189, 248, 0.1);
+        }
+
+        .song-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+
+        .audio-ctrl-btn {
+            background: var(--accent);
+            color: var(--bg-dark);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(56, 189, 248, 0.3);
+        }
+
+        .audio-ctrl-btn:hover {
+            transform: scale(1.1);
+            background: #7dd3fc;
+        }
+
+        .lyrics-box {
+            margin-top: 25px;
+            text-align: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 12px;
+        }
+
+        .lyric-line {
+            margin-bottom: 18px;
+            line-height: 1.6;
+        }
+
+        .lyric-line:last-child {
+            margin-bottom: 0;
+        }
+
+        .lyric-zh {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            margin-bottom: 3px;
+        }
+
+        .lyric-en {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -260,8 +330,8 @@
     <!-- 哲理序文區塊 -->
     <section class="preface-section">
         <div class="preface-header">
-            <h2>💭 時間的維度，是心流的刻度</h2>
-            <h3>The Dimension of Time is the Scale of Flow</h3>
+            <h2>序：時間的維度，是心流的刻度</h2>
+            <h3>Preface: The Dimension of Time is the Scale of Flow</h3>
         </div>
 
         <div class="preface-block">
@@ -311,10 +381,81 @@
             <div class="zh" style="text-align: center;">時間不該是束縛心靈的框架。當你凝視這些不同的時鐘，不妨放下對精準秒數的執著。去感受光的閃爍、去體會軌道的運行、去凝視生命旅程的推移。在這裡，時間重新回歸於你的<strong>主觀知覺</strong>——它是一種心流，順著你的意識，緩緩流向無垠的星河。</div>
             <div class="en" style="text-align: center;">Time should never be a framework that confines the mind. As you gaze upon these diverse clocks, consider letting go of the obsession with precise seconds. Feel the flicker of light, experience the movement of orbits, and contemplate the passage of life's journey. Here, time returns to your <strong>subjective perception</strong>—it becomes a flow, gently drifting along with your consciousness into the boundless river of stars.</div>
         </div>
+
+        <div class="preface-divider"></div>
+
+        <!-- 背景音樂控制與歌詞區塊 -->
+        <!-- 加上 autoplay 屬性 -->
+        <audio id="bg-music" src="./Between_Heartbeats.mp3" loop autoplay></audio>
+
+        <div class="music-player-container">
+            <span class="song-title">🎵 Background Music: 寰宇心流 Between Heartbeats</span>
+            <button id="music-btn" class="audio-ctrl-btn" title="Play/Pause">▶</button>
+        </div>
+
+        <div class="lyrics-box">
+            <div class="lyric-line">
+                <div class="lyric-zh">在心跳的間隙中漂浮</div>
+                <div class="lyric-en">Floating in the space between heartbeats</div>
+            </div>
+            <div class="lyric-line">
+                <div class="lyric-zh">循著一道光的宇宙軌跡</div>
+                <div class="lyric-en">Following a light's cosmic pathway</div>
+            </div>
+            <div class="lyric-line">
+                <div class="lyric-zh">來自遙遠太陽的一抹溫暖</div>
+                <div class="lyric-en">A breath of warmth from a distant sun</div>
+            </div>
+            <div class="lyric-line">
+                <div class="lyric-zh">凝望著星雲靜靜地旋轉</div>
+                <div class="lyric-en">Watching nebulas softly turn</div>
+            </div>
+        </div>
     </section>
 
 </body>
 <script>
     const currentHost = window.location.host;
+
+    const music = document.getElementById('bg-music');
+    const musicBtn = document.getElementById('music-btn');
+
+    // 播放音樂並同步按鈕 UI
+    function playMusic() {
+        music.play().then(() => {
+            musicBtn.textContent = '⏸';
+        }).catch((error) => {
+            console.log("Autoplay prevented by browser, waiting for user interaction.", error);
+        });
+    }
+
+    // 1. 網頁載入時立刻嘗試自動播放
+    window.addEventListener('DOMContentLoaded', playMusic);
+
+    // 2. 為了繞過瀏覽器的限制：當使用者點擊網頁任何地方、或開始捲動時，如果音樂還沒播，就立即補播
+    function triggerAutoPlay() {
+        if (music.paused) {
+            playMusic();
+        }
+        // 播放成功後移除這些臨時監聽器，避免重複執行
+        window.removeEventListener('click', triggerAutoPlay);
+        window.removeEventListener('scroll', triggerAutoPlay);
+        window.removeEventListener('touchstart', triggerAutoPlay);
+    }
+    window.addEventListener('click', triggerAutoPlay);
+    window.addEventListener('scroll', triggerAutoPlay);
+    window.addEventListener('touchstart', triggerAutoPlay);
+
+    // 3. 手動 播放/暫停 按鈕邏輯
+    musicBtn.addEventListener('click', function(e) {
+        e.stopPropagation(); // 防止觸發上方的全網頁點擊監聽
+        if (music.paused) {
+            music.play();
+            musicBtn.textContent = '⏸';
+        } else {
+            music.pause();
+            musicBtn.textContent = '▶';
+        }
+    });
 </script> 
 </html>
