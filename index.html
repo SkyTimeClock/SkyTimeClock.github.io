@@ -188,14 +188,23 @@
         /* 音樂與歌詞專屬樣式 */
         .music-player-container {
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 40px;
+            padding: 18px;
+            background: rgba(56, 189, 248, 0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(56, 189, 248, 0.1);
+        }
+
+        .player-main-row {
+            display: flex;
             align-items: center;
             justify-content: center;
             gap: 15px;
-            margin-top: 40px;
-            padding: 15px;
-            background: rgba(56, 189, 248, 0.05);
-            border-radius: 30px;
-            border: 1px solid rgba(56, 189, 248, 0.1);
+            width: 100%;
         }
 
         .song-title {
@@ -224,6 +233,27 @@
         .audio-ctrl-btn:hover {
             transform: scale(1.1);
             background: #7dd3fc;
+        }
+
+        /* 自動播放開關樣式 */
+        .autoplay-setting-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
+        }
+
+        .autoplay-setting-row:hover {
+            color: var(--accent);
+        }
+
+        .autoplay-setting-row input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: var(--accent); /* 讓核取方塊與網站色調一致 */
         }
 
         .lyrics-box {
@@ -327,7 +357,6 @@
         </a>
     </div>
 
-    <!-- 哲理序文區塊 -->
     <section class="preface-section">
         <div class="preface-header">
             <h2>💭 時間的維度，是心流的刻度</h2>
@@ -384,30 +413,34 @@
 
         <div class="preface-divider"></div>
 
-        <!-- 背景音樂控制與歌詞區塊 -->
-        <!-- 加上 autoplay 屬性 -->
-        <audio id="bg-music" src="./Between_Heartbeats.mp3" loop autoplay></audio>
+        <audio id="bg-music" src="./Between_Heartbeats.mp3" loop></audio>
 
         <div class="music-player-container">
-            <span class="song-title">🎵 寰宇心流 Between Heartbeats</span>
-            <button id="music-btn" class="audio-ctrl-btn" title="Play/Pause">▶</button>
+            <div class="player-main-row">
+                <span class="song-title">🎵 Background Music: Between Heartbeats</span>
+                <button id="music-btn" class="audio-ctrl-btn" title="Play/Pause">▶</button>
+            </div>
+            <label class="autoplay-setting-row" for="autoplay-toggle">
+                <input type="checkbox" id="autoplay-toggle">
+                <span>下次進來自動播放背景音樂 (Auto-play next time)</span>
+            </label>
         </div>
 
         <div class="lyrics-box">
             <div class="lyric-line">
-                <div class="lyric-zh">漂浮流動心跳之間</div>
+                <div class="lyric-zh">在心跳的間隙中漂浮</div>
                 <div class="lyric-en">Floating in the space between heartbeats</div>
             </div>
             <div class="lyric-line">
-                <div class="lyric-zh">乘著星際光流軌跡</div>
+                <div class="lyric-zh">循著一道光的宇宙軌跡</div>
                 <div class="lyric-en">Following a light's cosmic pathway</div>
             </div>
             <div class="lyric-line">
-                <div class="lyric-zh">來自太陽一抹溫暖</div>
+                <div class="lyric-zh">來自遙遠太陽的一抹溫暖</div>
                 <div class="lyric-en">A breath of warmth from a distant sun</div>
             </div>
             <div class="lyric-line">
-                <div class="lyric-zh">凝望星雲靜靜旋轉</div>
+                <div class="lyric-zh">凝望著星雲靜靜地旋轉</div>
                 <div class="lyric-en">Watching nebulas softly turn</div>
             </div>
         </div>
@@ -419,25 +452,48 @@
 
     const music = document.getElementById('bg-music');
     const musicBtn = document.getElementById('music-btn');
+    const autoplayToggle = document.getElementById('autoplay-toggle');
 
-    // 播放音樂並同步按鈕 UI
+    // --- 核心邏輯 1：讀取/初始化瀏覽器中的偏好設定 ---
+    // 預設使用者第一次進來時為勾選狀態 (true)
+    let isAutoplayEnabled = localStorage.getItem('music_autoplay');
+    if (isAutoplayEnabled === null) {
+        isAutoplayEnabled = true;
+        localStorage.setItem('music_autoplay', 'true');
+    } else {
+        isAutoplayEnabled = (isAutoplayEnabled === 'true');
+    }
+    
+    // 同步 UI 畫面上的 Checkbox 狀態
+    autoplayToggle.checked = isAutoplayEnabled;
+
+    // 監聽 Checkbox 的變更，隨時儲存到 localStorage
+    autoplayToggle.addEventListener('change', function() {
+        localStorage.setItem('music_autoplay', this.checked.toString());
+    });
+
+
+    // --- 核心邏輯 2：自動播放與相容性處理 ---
     function playMusic() {
-        music.play().then(() => {
-            musicBtn.textContent = '⏸';
-        }).catch((error) => {
-            console.log("Autoplay prevented by browser, waiting for user interaction.", error);
-        });
+        // 只有當使用者開啟自動播放，才啟動播放程序
+        if (localStorage.getItem('music_autoplay') === 'true') {
+            music.play().then(() => {
+                musicBtn.textContent = '⏸';
+            }).catch((error) => {
+                console.log("Autoplay blocked by browser. Waiting for user interaction.");
+            });
+        }
     }
 
-    // 1. 網頁載入時立刻嘗試自動播放
+    // 網頁結構載入後立刻嘗試播放
     window.addEventListener('DOMContentLoaded', playMusic);
 
-    // 2. 為了繞過瀏覽器的限制：當使用者點擊網頁任何地方、或開始捲動時，如果音樂還沒播，就立即補播
+    // 針對現代瀏覽器政策，若初次播放被阻擋，當使用者點擊、捲動或觸控網頁時，自動觸發補播
     function triggerAutoPlay() {
-        if (music.paused) {
+        if (localStorage.getItem('music_autoplay') === 'true' && music.paused) {
             playMusic();
         }
-        // 播放成功後移除這些臨時監聽器，避免重複執行
+        // 移除非必要的監聽，避免重複執行
         window.removeEventListener('click', triggerAutoPlay);
         window.removeEventListener('scroll', triggerAutoPlay);
         window.removeEventListener('touchstart', triggerAutoPlay);
@@ -446,9 +502,10 @@
     window.addEventListener('scroll', triggerAutoPlay);
     window.addEventListener('touchstart', triggerAutoPlay);
 
-    // 3. 手動 播放/暫停 按鈕邏輯
+
+    // --- 核心邏輯 3：手動控制按鈕 ---
     musicBtn.addEventListener('click', function(e) {
-        e.stopPropagation(); // 防止觸發上方的全網頁點擊監聽
+        e.stopPropagation(); // 阻止事件向上傳遞，避免干擾 triggerAutoPlay 邏輯
         if (music.paused) {
             music.play();
             musicBtn.textContent = '⏸';
