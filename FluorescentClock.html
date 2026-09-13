@@ -1,0 +1,1021 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2D Fluorescent Clock - 螢光真空管時鐘</title>
+    <!-- Inline data icon to prevent 404 -->
+    <link rel="icon" href="data:,">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* [新增說明][RWD 最小寬度 375px] 原本 body 用 overflow-x: hidden，當使用者在手機
+         把系統/瀏覽器文字大小調到很大時，內部元件(按鈕文字等)會被撐寬超出視窗，
+         但因為是 hidden，超出的部分會被直接裁切看不到，導致版面錯亂(如右側文字被切斷)。
+         改成 overflow-x: auto，讓「#clock-app 版面本身維持最小 375px 寬度」時，若視窗
+         (在放大字體下)比 375px 還窄，使用者可以左右滑動捲動查看完整內容，而不是被裁切。
+         同時保留 body 原本的 flex 置中排版，寬度足夠時完全不受影響。 */
+      /* [新增說明][RWD 最小寬度 375px - 水平置中改法] justify-content 原本是 center，
+         但瀏覽器對「置中的 flex 容器、且子項目寬度超出容器」這種情況，捲動軸只能捲到
+         右側超出的部分，左側超出的部分會直接被裁掉、完全無法用捲動看到（這是各瀏覽器
+         共通的已知行為，並非 bug）。改成 flex-start 後，水平方向的置中改交給下面
+         #clock-app 自己的 inline style margin: 0 auto 處理：寬度足夠時 margin:auto
+         一樣能左右置中；一旦視窗變窄到不足以容納 #clock-app 的 min-width:375px 時，
+         auto margin 會自動收斂為 0，內容貼齊左邊界，超出視窗右側的部分即可透過
+         body 的 overflow-x: auto 完整捲動看到，不會有任何一側被裁切、捲不到。 */
+      body {
+        background-color: #040506;
+        color: #ffffff;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes ping {
+        75%, 100% {
+          transform: scale(2);
+          opacity: 0;
+        }
+      }
+      /* 空白行 */
+      .spacer {
+       height: 1px;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+
+
+      .glow-overlay {
+        pointer-events: none;
+        transition: background 0.5s ease;
+      }
+
+      /* Custom range input styling */
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 9999px;
+        height: 6px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #f97316;
+        cursor: pointer;
+        box-shadow: 0 0 8px #f97316;
+        transition: transform 0.1s ease, background-color 0.1s ease;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.5);
+        background: #fb923c;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border: none;
+        border-radius: 50%;
+        background: #f97316;
+        cursor: pointer;
+        box-shadow: 0 0 8px #f97316;
+        transition: transform 0.1s ease, background-color 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb:hover {
+        transform: scale(1.2);
+        background: #fb923c;
+      }
+
+      /* 專屬綠色滑桿顏色 不影響其它滑桿 */
+      input[type="range"].slider-green-thumb::-webkit-slider-thumb {
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+      }
+      input[type="range"].slider-green-thumb::-webkit-slider-thumb:hover {
+        background: #6ee7b7;
+      }
+      input[type="range"].slider-green-thumb::-moz-range-thumb {
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+      }
+      input[type="range"].slider-green-thumb::-moz-range-thumb:hover {
+        background: #6ee7b7;
+      }
+
+      /* 專屬白色滑桿顏色 */
+      input[type="range"].slider-white-thumb::-webkit-slider-thumb {
+        background: #cccecd;
+        box-shadow: 0 0 8px #d7d8d8;
+      }
+      input[type="range"].slider-white-thumb::-webkit-slider-thumb:hover {
+        background: #e1e2e2;
+      }
+      input[type="range"].slider-white-thumb::-moz-range-thumb {
+        background: #cccecd;
+        box-shadow: 0 0 8px #cccecd;
+      }
+      input[type="range"].slider-white-thumb::-moz-range-thumb:hover {
+        background: #ebecec;
+      }
+
+      /* HUE 專屬灰色滑桿顏色 */
+      input[type="range"].slider-gray-thumb::-webkit-slider-thumb {
+        background: #444444;
+        box-shadow: 0 0 8px #444444;
+      }
+      input[type="range"].slider-gray-thumb::-webkit-slider-thumb:hover {
+        background: #757575;
+      }
+      input[type="range"].slider-gray-thumb::-moz-range-thumb {
+        background: #444444;
+        box-shadow: 0 0 8px #444444;
+      }
+      input[type="range"].slider-gray-thumb::-moz-range-thumb:hover {
+        background: #757575;
+      }
+
+      dialog {
+        width: 80%;
+        max-width: 360px;
+        max-height: 75vh;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        color: #ffffff;
+        background-color: rgba(10, 10, 12, 0.45);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.01);
+        overflow-y: auto;
+      }
+
+      dialog::backdrop {
+        backdrop-filter: blur(0px);
+        background-color: rgba(0, 0, 0, 0.01);
+        -webkit-backdrop-filter: blur(0px);
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #08090a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(249, 115, 22, 0.2);
+        border-radius: 9px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(249, 115, 22, 0.4);
+      }
+
+      .knob-marker {
+        position: absolute;
+        width: 2px;
+        height: 12px;
+        background-color: #f97316;
+        box-shadow: 0 0 6px #f97316;
+        border-radius: 9999px;
+        top: 2px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Mobile RWD for Digital Clock Tubes */
+      /* [新增說明][手機尺寸同步] 新增 --nixie-scale 自訂屬性（預設值 1，透過
+         calc(...* var(--nixie-scale, 1)) 套用在所有原本以 clamp()/vw 計算的尺寸上）。
+         平常（PC／iPad）此變數維持預設 1，畫面完全不受影響、行為與原本相同；
+         只有在「手機直立」情境下，JS 會動態把這個變數設成一個 >1 的倍率，讓整個
+         數位鐘（含間距、燈管寬度、冒號）等比例放大到與類比鐘直徑同寬，
+         詳見 JS 檔案中的 syncClockAndNixieSizes() 函式。 */
+      .nixie-clock-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: calc(clamp(4px, 1.2vw, 12px) * var(--nixie-scale, 1));
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: calc(clamp(8px, 1.8vw, 16px) * var(--nixie-scale, 1)) calc(clamp(8px, 2.2vw, 24px) * var(--nixie-scale, 1));
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .nixie-digit-group {
+        display: flex;
+        gap: calc(clamp(2px, 0.6vw, 6px) * var(--nixie-scale, 1));
+        align-items: center;
+      }
+
+      .nixie-canvas {
+        width: calc(clamp(28px, 9.2vw, 70px) * var(--nixie-scale, 1));
+        height: auto;
+        background-color: transparent;
+        transition: all 0.3s ease;
+        filter: drop-shadow(0 6px 6px rgba(0,0,0,0.5));
+        flex-shrink: 1;
+      }
+
+      .nixie-colon-group {
+        display: flex;
+        flex-direction: column;
+        gap: calc(clamp(8px, 2vw, 16px) * var(--nixie-scale, 1));
+        align-items: center;
+        justify-content: center;
+        width: calc(clamp(6px, 1.6vw, 12px) * var(--nixie-scale, 1));
+        height: 100%;
+        padding-bottom: 4px;
+        flex-shrink: 0;
+      }
+
+      .nixie-colon-dot {
+        width: calc(clamp(4px, 1.2vw, 8px) * var(--nixie-scale, 1));
+        height: calc(clamp(4px, 1.2vw, 8px) * var(--nixie-scale, 1));
+        border-radius: 9999px;
+        transition: all 0.3s ease;
+      }
+
+      /* [Debug fix][橫向轉回直立時尺寸跑掉] .nixie-canvas 與 .nixie-colon-dot
+         都設有 transition: all 0.3s ease。當 JS 為了重新量測尺寸而把
+         --nixie-scale 重置回 1 時，若「重置」與「量測 getBoundingClientRect()」
+         在同一時間點發生，量到的其實是「過渡動畫進行中」的中間值(仍偏大，還沒
+         真正縮回原生尺寸)，導致算出來的縮放倍率被嚴重低估。JS 在量測與套用
+         新尺寸的整個過程中，會暫時加上這個 class 關閉 transition，量測/套用
+         完成後才移除，確保量到的一定是「瞬間生效」的最終尺寸，而不是動畫中間值。*/
+      .nixie-resize-lock,
+      .nixie-resize-lock * {
+        transition: none !important;
+      }
+
+      .font-option-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        background-color: rgba(10, 10, 12,0.75);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .font-option-card:hover {
+        background-color: rgba(6, 182, 212, 0.12);
+        border-color: rgba(6, 182, 212, 0.4);
+      }
+
+      .font-option-card.active {
+        background-color: rgba(6, 182, 212, 0.18);
+        border-color: #06b6d4;
+        box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Main Container Frame -->
+    <!-- [修正說明][新問題2/3] 原本只有 <main> 設 flex:1 去撐滿剩餘高度，當視窗「窄+高」
+         （例如 iPhone 12 Pro）時，main 會被撐得比實際內容需要的高度大很多；main 內容雖然用
+         justify-content:center 置中（上下留白其實是「等量」的，只是視覺上底部留白緊接著
+         footer 的 16px padding、再加上 h1 的 12px margin-top，多層留白疊加起來就顯得
+         「真空字形／電感排毒」按鈕跟 SYS UPTIME、以至於跟下方 FLUORESCENT CLOCK 字樣之間
+         距離特別大。
+         做法：改成讓最外層 #clock-app 本身用 justify-content:center 來吸收「視窗高度 - 內容
+         總高度」的多餘空間（若內容比 100vh 短，留白會平均分配在最上方 header 之上與最下方
+         狀態列之下，而不是硬塞在 main 內部的按鈕與 footer 之間），同時把 <main> 的
+         flex:1 / min-height:500px 移除，讓 main 高度完全跟隨內容，不再產生內部大留白。 -->
+    <!-- [新增說明][RWD 最小寬度 375px] 加上 min-width: 375px，讓整體版面(標題列按鈕、
+         文字等)在任何情況下都維持至少 375px 寬度的排版比例，不會因為視窗變窄(例如手機
+         放大字體造成的有效可視寬度縮小到 280px~375px 之間)而被迫擠壓變形；此時改由外層
+         body 的 overflow-x: auto 讓使用者可以左右滑動捲動查看完整版面。
+         同時把 overflow-x 由 hidden 改成 visible，避免版面本身寬度已經 >= 視窗寬度時，
+         內部還沒來得及被 body 捲動軸吸收前，被這一層再裁切一次。 -->
+    <div
+      id="clock-app"  
+      style="width: 100%; max-width: 1280px; min-width: 375px; margin: 0 auto; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; background-color: #08090a; border-left: 1px solid rgba(255, 255, 255, 0.05); border-right: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; user-select: none; font-family: 'Space Grotesk', sans-serif; overflow-x: visible;"
+    >
+      <!-- Background radial glowing gradients 整體背景-->
+      <div id="ambient-glow" class="glow-overlay" style="position: absolute; pointer-events: none; top: 0; right: 0; bottom: 0; left: 0; transition: all 0.5s ease;"></div>
+
+      <!-- Top Header Bar -->
+      <header style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 0px 0px 0px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background-color: rgba(0, 0, 0, 0.2); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); z-index: 10; box-sizing: border-box;">
+        
+        <div style="position: relative; display: flex; align-items: center; gap: 2px;">
+
+            <button
+              id="btn-quick-preset"
+              style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 12px; font-size: 12px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; color: #fb923c; font-weight: bold; transition: all 0.2s ease; box-shadow: 0 0 15px rgba(249, 115, 22, 0.1); cursor: pointer;"
+            >
+              <span style="position: relative; display: flex; height: 22px; width: 22px; align-items: center; justify-content: center; flex-shrink: 0;">
+                <span id="theme-num-ping" style="position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 9999px; background-color: #fb923c; opacity: 0.75; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+                <span id="theme-num-circle" style="position: relative; display: inline-flex; border-radius: 9999px; height: 22px; width: 22px; background-color: #f97316; color: #000000; font-weight: 900; font-size: 13px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0px; align-items: center; justify-content: center; line-height: 1;">1</span>
+              </span>
+              THEMES (風格)
+            </button>
+           
+
+            <button
+              id="main-hub-color-openBtn" 
+              style="width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; cursor: pointer; border: 1px solid rgba(6, 182, 212, 0.3); background-color: rgba(8, 51, 68, 0.2); color: #22d3ee; box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);"
+              title="主風格調校設定 (Main theme Settings)"
+            >
+              <svg style="width: 20px; height: 20px; animation: spin 16s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+
+        </div>    
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <!-- Controls -->
+          <div style="display: flex; align-items: center; gap: 2px;">
+            <div style="text-align: center; font-family: 'JetBrains Mono', monospace;">
+              <!-- 
+              <p style="font-size: 8px; color: rgba(255, 255, 255, 0.75); text-transform: uppercase; letter-spacing: 0.1em; margin: 0;">Second Sound</p>
+              -->
+              <p id="power-text" style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #10b981; margin: 0;">SOUND ON</p>
+            </div>
+
+            <!-- Unified Control Button Row -->
+            <div style="display: flex; align-items: center; gap: 8px; background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 4px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.05);">
+              <button
+                id="btn-power"
+                style="width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; cursor: pointer; border: 2px solid #10b981; background-color: rgba(6, 78, 59, 0.4); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5), inset 0 0 8px rgba(16, 185, 129, 0.3); color: #34d399;"
+                title="Mute / Unmute Tick Sound"
+              >
+                <svg id="header-speaker-icon" style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18.75V5.25L7.75 9.5H4.5v5h3.25L12 18.75z" />
+                </svg>
+              </button>
+
+              <button
+                onclick="history.back()"
+                style="width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; cursor: pointer; border: 1px solid rgba(6, 182, 212, 0.3); background-color: rgba(8, 51, 68, 0.2); color: #22d3ee; box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);"
+                title="回上一頁 (Go Back)"
+              >
+                <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Control Bar: 風格自動輪播(Carousel) 開關 + 外環燈條旋轉 暫停/恢復 開關。
+           [移除說明] 原本這裡還包含「左右滑動切換主題/字型」的 swipe 開關(btn-swipe-toggle)，
+           已依需求整個移除；此列現在只保留 Carousel 與 ring-rotation 這兩個開關。 -->
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0px 0px 0 0px; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 2px;">
+        <button
+          id="btn-Style-Carousel-toggle"
+          type="button"
+          role="switch"
+          aria-pressed="false"
+          title="開始自動輪播風格，每 20 秒自動切換下一個風格 (Start theme Style Carousel - auto-advance every 20s)"
+          style="display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9999px; background-color: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.15); color: rgba(255, 255, 255, 0.5); font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: bold; letter-spacing: 0.03em; cursor: pointer; transition: all 0.2s ease; box-shadow: none; user-select: none;"
+        >
+          <span id="Style-Carousel-icon" style="font-size: 13px; line-height: 1; color: #34d399; opacity: 1;">🔁</span>
+          <span id="Style-Carousel-label" style="color: rgba(255, 255, 255, 0.5);">Carousel</span>
+        </button>
+        </div>
+
+        <!-- Outer Ring Light Bar Rotation Pause/Resume Toggle: lets the user
+             freeze the spinning outer "Christmas light" ring bars in place
+             (lights stay lit, just stop moving) and resume rotation later
+             from the exact angle where it was paused. Intentionally kept
+             out of the THEMES presets - this is a runtime-only UI state,
+             not a saved preset attribute. -->
+        <div style="display: flex; align-items: center; gap: 2px;">
+
+
+         <A style="font-size: 12px; color: #cecece; line-height: 1; gap: 2px;">rotating</A> 
+        <button
+          id="btn-ring-rotation-toggle"
+          type="button"
+          role="switch"
+          aria-pressed="true"
+          title="暫停外環燈條旋轉 (Pause outer ring light rotation)"
+          style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-right: 10px; border-radius: 9999px; background-color: rgba(8, 51, 68, 0.25); border: 1px solid rgba(6, 182, 212, 0.5); color: #22d3ee; font-size: 13px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 0 10px rgba(6, 182, 212, 0.15); user-select: none; flex-shrink: 0;"
+        >
+          <span id="ring-rotation-toggle-icon" style="line-height: 1; display: flex; align-items: center; justify-content: center;">⏸</span>
+        </button>
+        </div>     
+      </div>
+
+      <!-- Dropdown menu -->
+      <div
+        id="quick-preset-dropdown"
+        class="hidden"
+        style="position: absolute; top: 50px; left: 12px; width: 280px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); background-color: rgba(0, 0, 0, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(249, 115, 22, 0.15); z-index: 30; flex-direction: column; gap: 4px; user-select: none;"
+      >
+        <div style="padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); text-transform: uppercase;">風格主題選單</span>
+          <span style="width: 6px; height: 6px; border-radius: 9999px; background-color: #10b981; animation: pulse 2s infinite;"></span>
+        </div>
+        <div id="quick-preset-items" style="display: flex; flex-direction: column; gap: 2px;">
+        </div>
+      </div>
+
+      <!-- Main Clock Stage
+           [修正說明1] 原本 justify-content: last baseline 對 flex 直排容器而言是「無效值」，
+           瀏覽器會靜默 fallback 成預設值（等同 flex-start，內容貼齊頂部），這也是造成
+           內容區塊位置不穩定的原因之一。改成合法且效果穩定的 center。
+           [修正說明2] 移除 flex:1 與 min-height:500px：這兩個屬性會強迫 main 撐滿
+           #clock-app 剩餘的所有垂直空間，在「窄+高」視窗（如 iPhone 12 Pro）下 main 會
+           變得比內容本身高很多，多出來的空間即使置中分配，也會讓按鈕與下方 footer/標題
+           之間顯得留白過大。現在 main 高度改為完全貼合內容本身，多餘的視窗高度改由外層
+           #clock-app 的 justify-content:center 統一吸收（留白會平均分配到整張卡片的
+           最上方與最下方，不再卡在按鈕與 footer 中間）。 -->
+      <main style="display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; padding: 0px 0px; width: 100%;">
+        <!-- Part 0: Analog Clock + Digital Glow Nixie Clock Tubes Canvas -->
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; z-index: 10; gap: 6px;">
+          
+          <!-- Part 1: Analog Clock Canvas -->
+          <!-- [移除說明] 原本此容器 id 為 "swipe to change 8 theme recursively"，並附有
+               左右滑動切換主題功能 (touch-action:none 攔截手勢 + 浮動提示 Toast)。
+               依需求已整個移除滑動切換功能，id 改回一般語意命名，touch-action 也還原
+               為預設值，讓系統原生手勢 (雙指縮放等) 可正常運作。 -->
+          <div
+            id="analog-clock-stage"
+            style="position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; -webkit-user-select: none; user-select: none;"  
+          >
+            <!-- width="640"   -->
+            <canvas
+              id="analog-clock-canvas"
+              width=640px
+              height=640px
+              style="max-width: 95vw; max-height: 52vh; aspect-ratio: 1/1; width: auto; height: auto; filter: drop-shadow(0 0 25px rgba(29, 249, 22, 0.18)); transition: filter 0.5s ease; user-select: none;"
+            ></canvas>
+          </div>
+
+          <!-- Part 2: Digital Glow Nixie Clock Tubes -->
+          <!-- [移除說明] 原本此容器 id 為 "swipe to change 6 font style recursively"，並附有
+               左右滑動切換字型功能 (touch-action:none 攔截手勢 + 浮動提示 Toast)。
+               依需求已整個移除滑動切換功能，id 改回一般語意命名，touch-action 也還原
+               為預設值，讓系統原生手勢 (雙指縮放等) 可正常運作。 -->
+          <div
+            id="nixie-clock-stage"
+            style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; padding: 0 4px; -webkit-user-select: none; user-select: none;"
+          >
+
+            <div id="nixie-clock-wrapper" class="nixie-clock-container" style="transition: none;">
+              
+              <!-- Hours -->
+              <div class="nixie-digit-group">
+                <canvas id="nixie-h1" width="105" height="260" class="nixie-canvas"></canvas>
+                <canvas id="nixie-h2" width="105" height="260" class="nixie-canvas"></canvas>
+              </div>
+
+              <!-- Colon 1 -->
+              <div class="nixie-colon-group">
+                <div id="colon-1-top" class="nixie-colon-dot"></div>
+                <div id="colon-1-bottom" class="nixie-colon-dot"></div>
+              </div>
+
+              <!-- Minutes -->
+              <div class="nixie-digit-group">
+                <canvas id="nixie-m1" width="105" height="260" class="nixie-canvas"></canvas>
+                <canvas id="nixie-m2" width="105" height="260" class="nixie-canvas"></canvas>
+              </div>
+
+              <!-- Colon 2 -->
+              <div class="nixie-colon-group">
+                <div id="colon-2-top" class="nixie-colon-dot"></div>
+                <div id="colon-2-bottom" class="nixie-colon-dot"></div>
+              </div>
+
+              <!-- Seconds -->
+              <div class="nixie-digit-group">
+                <canvas id="nixie-s1" width="105" height="260" class="nixie-canvas"></canvas>
+                <canvas id="nixie-s2" width="105" height="260" class="nixie-canvas"></canvas>
+              </div>
+
+            </div>
+
+            <!-- Date Display Overlay -->
+            <div id="date-display" style="margin-top: 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.18em; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; user-select: none; text-align: center;">
+              -- 2026.08.05 / Wednesday --
+            </div>
+          </div>
+
+          <!-- 底部按鈕列：字體選擇（左）+ 電感排毒（右）
+               [修正說明] 原本這兩顆按鈕是用 position:absolute; bottom:16px 貼在 <main> 的底部，
+               但 <main> 是 flex:1 且 min-height:500px，實際渲染高度會隨瀏覽器視窗的「寬高比例」
+               劇烈變化（窄+高的視窗下 main 會變得非常高）。因為按鈕是相對 main 的絕對定位、
+               而「當天日期文字」卻是跟著時鐘一起在文件流(normal flow)中排版，兩者的參考基準
+               不同，導致視窗越窄越高時，按鈕與日期文字之間的間距忽大忽小、上下錯位。
+               [修正做法] 移除 absolute 定位，改成跟「當天日期文字」同一個 flex 直排容器的
+               一般文件流子元素（此容器本身已設定 gap:16px），如此按鈕列與日期文字、以及與
+               下方 footer(SYS UPTIME) 之間都維持固定且一致的間距，不再受視窗高度影響。 -->
+          <!-- [修正說明][新問題3] 原本這裡設了 max-width:460px，在較寬的螢幕（IpadAir／PC
+               browser）上，這個按鈕列會被限制成一個 460px 的小盒子並置中，導致兩顆按鈕被
+               「拉向畫面中間」，而不是像原設計那樣貼齊左右兩側。拿掉 max-width 限制後，
+               按鈕列會跟時鐘／指針錶盤同寬（撐滿 main 的可用寬度），justify-content:
+               space-between 才能讓按鈕真正貼齊左右兩側，恢復左右均衡的美感。 -->
+          <!-- Part 3: 底部兩側：功能按鈕  -->
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 6px; box-sizing: border-box; z-index: 20;">
+            <!-- 底部左側：字體選擇按鈕 -->
+            <button
+              id="btn-font-select"
+              style="letter-spacing: 2px; padding: 1px 8px 2px 8px; border-radius: 12px; font-size: 13px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(16, 185, 129, 0.6); background-color: #059669; color: #ffffff; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); transition: all 0.2s ease; cursor: pointer;"
+            >6️⃣Fonts
+            </button>
+
+            <!-- 底部右側：電感排毒按鈕 -->
+            <button
+              id="btn-cleaner"
+              style="letter-spacing: 2px; padding: 1px 8px 2px 8px; border-radius: 12px; font-size: 13px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(16, 185, 129, 0.6); background-color: #059669; color: #ffffff; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); transition: all 0.2s ease; cursor: pointer;"
+            >
+              <span id="btn-cleaner-text">⚡E-Detox</span>
+            </button>
+          </div>
+
+        </div>
+
+      </main>
+
+      <!-- Footer statistics -->
+      <footer style="text-align: center; padding: 6px; background-color: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: rgba(255, 255, 255, 0.5); letter-spacing: -0.025em; gap: 16px; user-select: none; z-index: 10;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <svg style="width: 14px; height: 14px; color: rgba(249, 115, 22, 0.5);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+          <span>CO2 REGULATOR GAIN:</span>
+          <span style="color: #f97316; font-weight: bold;">1.436</span>
+        </div>
+        <div>
+          <span>SYS UPTIME: <span id="uptime-text" style="color: #94a3b8; font-weight: bold;">00:00:00</span></span>
+        </div>
+      </footer>
+      <!-- 結尾-->
+      <h1 style="font-size: 12px; letter-spacing: 0.3em; font-weight: bold; color: #f97316; text-transform: uppercase; margin-top: 2px; margin-bottom: 4px; display: flex; justify-content: center; align-items: center; gap: 6px;"> 
+        <!-- 座標閃爍小圖 
+        <svg style="width: 16px; height: 16px; color: #f97316; animation: pulse 2s infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>-->
+        Time Wheel · fluorescent clock
+      </h1>
+      <h1 style="font-size: 12px; letter-spacing: 0.3em; font-weight: bold; color: #f97316; text-transform: uppercase; margin-top: 2px; margin-bottom: 4px; display: flex; justify-content: center; align-items: center; gap: 6px;"> 
+        時光轉輪·螢光真空管時鐘
+      </h1>
+      <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <span id="power-dot" style="width: 8px; height: 8px; border-radius: 9999px; background-color: #10b981; animation: pulse 2s infinite;"></span>
+        <span id="model-status" style="font-size: 10px; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; font-family: 'JetBrains Mono', monospace;">Model LT-24 Virtual Cathode</span>
+        <span id="model-status" style="font-size: 8px; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.2); text-transform: uppercase; font-family: 'JetBrains Mono', monospace;">Ver. 2026.08.13</span>
+      </div>
+
+      <!-- 設定頁 POPUP Dialog 跳出對話窗 -->
+      <dialog id="main-hub-color-popup" style="top: 125px; left: 10px;">
+
+        <!-- 風格標題區 -->
+        <div id="main-hub-color-draghandle" style="padding: 12px 16px; background-color: rgba(115, 115, 115, 0.5); border-bottom: 0px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: space-between; cursor: move; user-select: none;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="label-preset-name" style="font-family: 'Space Grotesk', sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold; color: #ffffff;">XXX風格主題</span>
+          </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px; color: #dddddd;">Reset</span>
+              <button id="main-hub-color-resetBtn" title="Reset to default 重置為預設值" style="margin-right: 6px;line-height:2.2px; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #363636; color: rgba(255, 255, 255, 0.8); font-size: 15px; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.1);">
+               🧿
+              </button>
+              <button id="main-hub-color-closeBtn" title="close 關閉" style="width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #3b82f6; color: #ffffff; font-size: 18px; cursor: pointer; transition: all 0.15s ease; border: 1px solid rgba(255, 255, 255, 0.1);">
+              ✕
+              </button>          
+            </div>
+
+        </div>
+
+        <!-- Tab Selectors -->
+        <div style="display: flex;  background-color: rgba(115, 115, 115, 0.5); font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; font-weight: 600;">
+          <button onclick="switchTab('theme')" id="tab-btn-theme" style="flex: 1; width: 0;font-size: 16px; padding: 8px 16px; text-align: center; background-color: rgba(10, 10, 12, 0.45); color: #ffffff; border-width: 0px; border-bottom: 2px solid #00ff00; cursor: pointer; transition-duration: 150ms;">
+          🎨 theme  主色
+          </button>
+          <button onclick="switchTab('hand')" id="tab-btn-hand" style="flex: 1; width: 0;font-size: 16px; padding: 8px 16px; text-align: center; background-color: rgba(115, 115, 115, 0.5); color: #858585; border-width: 0px; border-bottom: 2px solid #272727; cursor: pointer; transition-duration: 150ms;">
+          ☝ hand  針色
+          </button>
+          <button onclick="switchTab('rim')" id="tab-btn-rim" style="flex: 1; width: 0;font-size: 16px; padding: 8px 16px; text-align: center; background-color: rgba(115, 115, 115, 0.5); color: #858585; border-width: 0px; border-bottom: 2px solid #272727; cursor: pointer; transition-duration: 150ms;">
+          ⭕ rim  環燈
+          </button>
+          <button onclick="switchTab('effect')" id="tab-btn-effect" style="flex: 1; width: 0;font-size: 16px; padding: 8px 16px; text-align: center; background-color: rgba(115, 115, 115, 0.5); color: #858585; border-width: 0px; border-bottom: 2px solid #272727; cursor: pointer; transition-duration: 150ms;">
+          ✨ effect  效果
+          </button>
+        </div>
+
+        <!-- Tab Contents Area 1 theme 第1分頁 -->
+        <div id="tab-content-theme" style="padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;"> 
+              <a style="text-align: center; font-size: 12px;">Digital clock + analog clock frame with 3, 6, 9, 12 hour markers and scale.</a>              
+              <p style="text-align: center;font-size: 12px; letter-spacing: 0.05em; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; font-weight: bold; padding-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                [ 數字鐘 + 類比鐘主框 3,6,9,12 整點與刻度 ]
+              </p>
+              <!-- Column A -->
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+              <!--<div style="display: flex; align-items: center; justify-content: space-between; background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px;"-->
+                <div style="display: flex; padding-top: 0px; align-items: center; gap: 1px;">
+                  <span id="label-hue" style="padding-top: 12px; padding-bottom: 0px; padding-right: 40px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #07c500; font-weight: 600; letter-spacing: 0.05em;">
+                    HUE 色相: 28°
+                  </span>
+                  <div
+                    id="color-preview-box"
+                    style="width: 36px; height: 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.2); background-color: #f59e0b;"
+                  ></div>
+                </div>  
+              </div>
+
+              <div id="picker-container" style="padding-top: 8px;padding: 14px; background-color: #ffffff; color: #000000; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e5e5e5; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; color: #262626;">HUE:</span>
+                <input
+                  id="slider-hue-picker"
+                  class="slider-gray-thumb"
+                  type="range"
+                  min="0"
+                  max="360"
+                  value="28"
+                  style="flex: 1; height: 10px; border-radius: 9999px; cursor: pointer; background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);"
+                />
+              </div>
+
+              <!-- Saturation(飽和度) 調整桿：可調範圍 0% - 100% -->
+              <span id="label-saturation" style="padding-top: 12px; padding-bottom: 0px;line-height: 1px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #07c500; font-weight: 600; letter-spacing: 0.05em; align-self: flex;">
+                SATURATION 飽和度: 91%
+              </span>
+              <div id="saturation-picker-container" style="padding: 14px; background-color: #ffffff; color: #000000; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e5e5e5; display: flex; align-items: center; gap: 10px;">
+
+                <span style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; color: #262626;">SAT:</span>
+                <input
+                  id="slider-saturation-picker"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="91"
+                  style="flex: 1; height: 10px; border-radius: 9999px; cursor: pointer; background: linear-gradient(to right, #bfbfbf, #f59e0b);"
+                />
+              </div>
+
+              <!-- Brightness(亮度) 調整桿：可調範圍 20% - 100% -->
+              <span id="label-brightness" style="padding-top: 12px; padding-bottom: 0px;line-height: 1px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #07c500; font-weight: 600; letter-spacing: 0.05em; align-self: flex;">
+                BRIGHTNESS 明亮度: 98%
+              </span>
+
+              <div id="brightness-picker-container" style="padding:14px ;background-color: #ffffff; color: #000000; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e5e5e5; display: flex; align-items: center; gap: 10px;">
+                <span style=" font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; color: #262626;">BRI:</span>
+                <input
+                  id="slider-brightness-picker"
+                  class="slider-gray-thumb"
+                  type="range"
+                  min="20"
+                  max="100"
+                  value="98"
+                  style="flex: 1; height: 10px; border-radius: 9999px; cursor: pointer; background: linear-gradient(to right, #262626, #f5f5f5);"
+                />
+              </div>
+          </div>
+          <!-- 空白行 <div style=" height: 0px;" class="spacer"></div> <hr style="margin-top: 0px; margin-bottom: 0px; border:none;">-->
+          <!--<hr style="padding: 0;margin-top: 2px; margin-bottom: 2px; border:none;">-->
+          <hr style="border:none;">
+        </div>
+
+        <!-- Tab Contents Area 2 Hand 第2分頁-->
+        <div id="tab-content-hand" style="padding: 16px; display: none; flex-direction: column; gap: 16px;">
+
+              <p style="font-size: 12px; letter-spacing: 0.05em; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; font-weight: bold; padding-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                Non-Quarter Hours (整點與刻度)
+              </p>
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+                <span style="font-size: 11px; color: #e5e5e5; font-weight: bold;">1,2,4,5,7,8,10,11 points 點 & sub-scale 副刻度</span>
+                <input
+                  id="color-non-quarter"
+                  type="color"
+                  value="#f43f5e"
+                  style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;"
+                />
+              </div>
+
+              <p style="font-size: 12px; letter-spacing: 0.05em; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; font-weight: bold; padding-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                Hand Custom Colors (指針)
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+                  <span style="font-size: 11px; color: #e5e5e5; font-weight: bold;">Hour (時針)</span>
+                  <input
+                    id="color-hour-hand"
+                    type="color"
+                    value="#f59e0b"
+                    style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;"
+                  />
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+                  <span style="font-size: 11px; color: #e5e5e5; font-weight: bold;">Min (分針)</span>
+                  <input
+                    id="color-min-hand"
+                    type="color"
+                    value="#f1f5f9"
+                    style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;"
+                  />
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+                  <span style="font-size: 11px; color: #e5e5e5; font-weight: bold;">Sec (秒針)</span>
+                  <input
+                    id="color-sec-hand"
+                    type="color"
+                    value="#f43f5e"
+                    style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;"
+                  />
+                </div>
+              </div>
+
+              <div
+                id="knob-format"
+                style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background-color: rgba(25, 25, 25, 0.75); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); cursor: pointer; user-select: none; transition: all 0.2s ease;"
+                >
+                <span id="label-format-btn" style="font-size: 12px; letter-spacing: 0.05em; color: #ffffff; font-family: 'JetBrains Mono', monospace; font-weight: bold;">
+                  MODE:
+                </span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="lbl-format-12h" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; transition: all 0.2s ease; color: rgba(255, 255, 255, 0.35);">
+                    12h
+                  </span>
+                  <div style="width: 44px; height: 22px; border-radius: 9999px; background-color: rgba(25, 25, 25, 0.8); border: 1.5px solid rgba(255, 255, 255, 0.2); position: relative; display: flex; align-items: center; padding: 2px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+                    <div
+                      id="knob-format-marker"
+                      style="width: 16px; height: 16px; border-radius: 9999px; background-color: #38bdf8; box-shadow: 0 0 8px #38bdf8; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(22px);"
+                    ></div>
+                  </div>
+                  <span id="lbl-format-24h" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: bold; transition: all 0.2s ease; color: #38bdf8;">
+                    24h
+                  </span>
+                </div>
+              </div>
+          <!-- 空白行 -->
+          <hr style="margin-top: 0px; margin-bottom: 0px;border:none;">
+
+        </div>
+
+
+        <!-- Tab Contents Area 3 rim 第3分頁-->
+        <div id="tab-content-rim" style="display: none; padding: 8px; flex-direction: column; gap: 6px;">
+
+          <div style="padding: 0px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- 12條垂直光條顏色搭配即時預覽區：方便一眼感受 6 色搭配後的視覺效果 -->
+            <div style="padding: 2px 2px 12px 2px; background-color: rgba(15, 15, 15, 0.8); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center;">
+              <div id="rim-color-preview" style="display: flex; align-items: flex-end; justify-content: center; gap: 10px; height: 64px;">
+                <!-- 12 條光條由 JS renderRimColorPreview() 動態產生，顏色順序與外環燈條實際渲染順序一致 -->
+              </div>
+            </div>
+            <!-- 6 光條顏色 -->  
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">1</span>
+              <input id="color-light-1" type="color" value="#ffffff" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">2</span>
+              <input id="color-light-2" type="color" value="#cbd5e1" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">3</span>
+              <input id="color-light-3" type="color" value="#cbd5e1" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">4</span>
+              <input id="color-light-4" type="color" value="#cbd5e1" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">5</span>
+              <input id="color-light-5" type="color" value="#cbd5e1" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; background-color: rgba(25, 25, 25, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 4px;">
+              <span style="font-size: 12px; color: #e5e5e5; font-weight: bold;">6</span>
+              <input id="color-light-6" type="color" value="#cbd5e1" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; background: transparent;" />
+              </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 12px;">
+            <div>
+              <div style="padding: 0px 14px 0px 14px;display: flex; justify-content: space-between; ">
+                <span style="font-size: 12px; letter-spacing: 0.05em; color: #ffffff; font-family: 'JetBrains Mono', monospace; font-weight: bold;">
+                  Bar Length (外層燈條長度)
+                </span>
+                <span id="label-barlength" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #eab308; font-weight: bold;">14px</span>
+              </div>
+              <input
+                id="slider-barlength"
+                class="slider-white-thumb"
+                type="range"
+                min="1"
+                max="32"
+                value="1"
+                style="width: 100%; height: 6px; cursor: pointer;"
+              />
+            </div>
+
+            <div>
+              <div style="padding: 0px 14px 0px 14px;display: flex; justify-content: space-between; ">
+                <span style="font-size: 12px; letter-spacing: 0.05em; color: #ffffff; font-family: 'JetBrains Mono', monospace; font-weight: bold;">
+                  Outer Rims Opacity (外層圓框透明度)
+                </span>
+                <span id="label-opacity" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #facc15; font-weight: bold;">10%</span>
+              </div>
+              <input
+                id="slider-opacity"
+                class="slider-white-thumb"
+                type="range"
+                min="0"
+                max="100"
+                value="10"
+                style="width: 100%; height: 6px; cursor: pointer;"
+              />
+            </div>
+            <span style="padding:0px ;line-height: 1px;font-size: 8px;"><br></span>
+          </div>
+        </div>
+        </div>
+
+        <!-- Tab Contents Area 4 effect 第4分頁 -->
+        <div id="tab-content-effect" style="display: none; padding: 8px; flex-direction: column; gap: 16px;">
+          <div style="padding: 2px; display: flex; flex-direction: column; gap: 8px;">
+            
+            <!-- Column A -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <a style="text-align: center; font-size: 12px;">Digital Clock : Light and Sound Effects</a>  
+              <a style="text-align: center; font-size: 12px;">[  數字鐘 : 光影 與 音效  ]</a>  
+              <!-- Glow Slider -->
+              <div style="padding: 4px 14px 12px 14px; background-color: rgba(25, 25, 25, 0.75); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #e5e5e5; font-weight: bold;">
+                    Glow (光輝)
+                  </label>
+                  <span id="label-glow" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #facc15; font-weight: bold;">40%</span>
+                </div>
+                <input
+                  id="slider-glow"
+                  class="slider-white-thumb"
+                  type="range"
+                  min="15"
+                  max="95"
+                  value="40"
+                  style="width: 100%; height: 6px; cursor: pointer;"
+                />
+              </div>
+
+              <!-- Motion trail Slider -->
+              <div style="padding: 4px 14px 12px 14px;background-color: rgba(25, 25, 25, 0.75); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #e5e5e5; font-weight: bold;">
+                    Motion trail (拖影)
+                  </label>
+                  <span id="label-decay" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #facc15; font-weight: bold;">180ms</span>
+                </div>
+                <input
+                  id="slider-decay"
+                  class="slider-white-thumb"
+                  type="range"
+                  min="40"
+                  max="600"
+                  value="180"
+                  style="width: 100%; height: 6px; cursor: pointer;"
+                />
+              </div>
+
+              <!-- AC Hum Slider -->
+              <div style="padding: 4px 14px 12px 14px; background-color: rgba(25, 25, 25, 0.75); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #34d399; font-weight: bold;">
+                   🌀 AC Hum (電感哼聲)
+                  </label>
+                  <span id="label-hum" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: bold;">15%</span>
+                </div>
+                <input
+                  id="slider-hum"
+                  class="slider-green-thumb"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="15"
+                  style="width: 100%; height: 6px; cursor: pointer;"
+                />
+              </div>
+
+              <!-- Electro Detox Sound Volume Slider -->
+              <div style="padding: 8px;  background-color: rgba(16, 185, 129, 0.08); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #34d399; font-weight: bold;">
+                   ⚡ volume 電感排毒滋滋雜音音量
+                  </label>
+                  <span id="label-detox-vol" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: bold;">70%</span>
+                </div>
+                <input
+                  id="slider-detox-vol"
+                  class="slider-green-thumb"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="70"
+                  style="width: 100%; height: 6px; cursor: pointer;"
+                />
+              </div>
+
+
+            </div>
+
+            <!-- Column B -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                 <!-- Coil Whine Frequency Slider & Test Button -->
+              <div style="padding: 8px; background-color: rgba(6, 182, 212, 0.08); border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.2); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #34d399; font-weight: bold;">
+                    🌀 Coil Whine frequency (線圈噪音頻率)
+                  </label>
+                  <span id="label-coil-freq" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: bold;">12.5kHz</span>
+                </div>
+                <input
+                  id="slider-coil-freq"
+                  type="range"
+                  class="slider-green-thumb"
+                  min="8000"
+                  max="16000"
+                  step="200"
+                  value="12500"
+                  style="width: 100%; height: 6px; cursor: pointer;"
+                />
+              </div>
+                <button
+                  id="btn-test-detox"
+                  style="margin-top: 0px; padding: 6px 6px; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.4); background-color: rgba(8, 51, 68, 0.4); color: #22d3ee; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: bold; cursor: pointer; transition: all 0.2s ease;"
+                > ⚡ Testing 試聽線圈雜訊與電弧爆裂聲
+                </button>
+
+
+            </div>
+          <!-- 空白行 -->
+          <hr style="margin-top: 0px; margin-bottom: 0px;border:none;">
+
+          </div>
+        </div>
+
+        
+      </dialog>      
+
+
+
+      <!-- 螢光真空管字體選擇彈出對話視窗 -->
+      <dialog id="font-select-popup" style="top: 125px; left: 10px; width: 380px;">
+        <div id="font-select-draghandle" style="padding: 12px 16px; background-color: rgba(228, 228, 231, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: space-between; cursor: move; user-select: none;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-family: 'Space Grotesk', sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold; color: #ffffff;">🔤 Vacuum tube font selection</span>
+          </div>
+          <button id="font-select-closeBtn" title="關閉" style="width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #0891b2; color: #ffffff; font-size: 18px; cursor: pointer; transition: all 0.15s ease; border: 1px solid rgba(255, 255, 255, 0.1);">
+          ✕
+          </button>          
+        </div>
+
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px;" id="font-options-container">
+          <!-- Populated by JS -->
+        </div>
+      </dialog>
+
+    </div>
+
+    <!-- Core Clock App Vanilla JavaScript -->
+    <script src="FluorescentClock.js"></script>
+  </body>
+</html>

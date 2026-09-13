@@ -1,1 +1,966 @@
-<!doctypehtml><html class="transition-colors duration-500"lang="zh-TW"><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1"name="viewport"><title>慢鐘 · Slow Clock</title><link href="https://fonts.googleapis.com"rel="preconnect"><link href="https://fonts.gstatic.com"rel="preconnect"crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@300;400&family=Noto+Serif+TC:wght@300;400;500;600&display=swap"rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Noto Sans TC"',"sans-serif"],serif:['"Noto Serif TC"',"serif"],display:['"Cormorant Garamond"',"serif"]}}}}</script><style>:root{--cream:#F4EFEB;--warmWhite:#FCFBF9;--borderColor:#E6DDD4;--clockBorder:#E6DDD4;--earth:#8C7A6B;--earthDeep:#594C42;--ink:#2B2421;--inkSoft:#6E625D;--sage:#A3B19B;--sageLight:#DCE2D9;--sageDeep:#586751;--terracotta:#C87A53}::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:0 0}::-webkit-scrollbar-thumb{background:rgba(138,158,140,.3);border-radius:9999px}::-webkit-scrollbar-thumb:hover{background:rgba(138,158,140,.5)}body{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}.noise-overlay::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.75;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E")}.bg-botanical-dots{background-image:radial-gradient(rgba(196,168,130,.15) 1.5px,transparent 1.5px);background-size:24px 24px}@keyframes leafDrift{0%{transform:translateY(105vh) translateX(0) rotate(0);opacity:0}15%{opacity:.25}90%{opacity:.25}100%{transform:translateY(-10vh) translateX(50px) rotate(360deg);opacity:0}}.leaf-drift-1{animation:leafDrift 18s linear infinite}.leaf-drift-2{animation:leafDrift 24s linear infinite;animation-delay:4s}.leaf-drift-3{animation:leafDrift 21s linear infinite;animation-delay:8s}.leaf-drift-4{animation:leafDrift 28s linear infinite;animation-delay:12s}@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}.animate-fade-in{animation:fadeIn .4s ease-out forwards}</style><body class="flex flex-col bg-[var(--cream)] bg-botanical-dots duration-500 font-sans min-h-screen noise-overlay overflow-x-hidden selection:bg-[var(--earth)]/20 text-[var(--ink)] transition-colors"><div class="fixed inset-0 overflow-hidden pointer-events-none z-0"><div class="absolute select-none text-lg leaf-drift-1">🍃</div><div class="absolute select-none text-lg leaf-drift-2">🌿</div><div class="absolute select-none text-lg leaf-drift-3">🍃</div><div class="absolute select-none text-lg leaf-drift-4">🌿</div></div><header class="flex flex-col relative w-full max-w-7xl mx-auto px-6 z-10 border-[var(--borderColor)]/60 border-b gap-4 md:flex-row md:items-center md:justify-between pb-4 pt-6"><div class="flex items-center gap-3"><h1 class="flex items-center font-serif font-semibold text-[var(--ink)] gap-2 md:text-2xl text-xl tracking-wide">慢鐘 <span class="font-display font-light italic text-[var(--earthDeep)] md:text-lg text-base">Slow Clock</span></h1><div class="flex items-center gap-1.5 font-serif border border-[var(--borderColor)] px-2.5 py-0.5 rounded-full select-none text-[10px] text-[var(--inkSoft)]"><span class="rounded-full duration-500 h-1.5 inline-block transition-colors w-1.5"id="seasonPip"></span> <span id="seasonLabel"></span></div><button class="icon-button"title="Go Back"aria-label="Go Back"onclick="history.back()"type="button"><svg viewBox="0 0 24 24"fill="none"stroke="currentColor"stroke-width="2.5"aria-hidden="true"height="22"width="22"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"stroke-linecap="round"stroke-linejoin="round"/></svg></button></div><div class="flex items-center py-1 gap-2 overflow-x-auto scrollbar-none"><span class="font-serif text-[10px] hidden shrink-0 sm:inline text-[var(--inkSoft)]/70 tracking-wider uppercase">畫境：</span><div class="flex items-center gap-1.5"id="themeBarContainer"></div></div></header><main class="grid grid-cols-1 flex-1 gap-8 items-start lg:grid-cols-12 max-w-7xl mx-auto px-6 py-8 relative w-full z-10"><section class="flex items-center flex-col lg:col-span-5 gap-6"><div class="flex items-center flex-col bg-[var(--warmWhite)] border group overflow-hidden p-6 relative rounded-3xl border-[var(--clockBorder)] duration-500 hover:shadow-[0_4px_32px_rgba(0,0,0,0.05)] md:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.03)] transition-all w-full"><div class="rounded-full absolute transition-transform -inset-10 bg-radial duration-1000 from-[var(--earth)]/5 group-hover:scale-110 opacity-30 pointer-events-none to-transparent"></div><div class="flex border-[var(--borderColor)]/40 border bg-[var(--cream)] max-w-[280px] mb-8 p-1 relative rounded-full w-full z-10"><button class="rounded-full cursor-pointer transition-all duration-300 py-1.5 flex-1 text-center text-xs bg-[var(--warmWhite)] font-normal shadow-sm text-[var(--ink)]"id="tabReal">真實時鐘</button> <button class="rounded-full cursor-pointer transition-all duration-300 py-1.5 flex-1 text-center text-xs font-light text-[var(--inkSoft)]"id="tabTimer">正念沙漏</button></div><div class="flex items-center justify-center rounded-full relative bg-[var(--cream)]/45 border-2 border-[var(--clockBorder)] h-64 md:h-72 md:w-72 shadow-[0_8px_32px_rgba(140,122,107,0.08)] w-64"><div class="rounded-full absolute pointer-events-none inset-0"><span class="absolute -translate-x-1/2 left-1/2 font-display text-[var(--inkSoft)]/50 text-xs tracking-wider top-2">XII</span> <span class="absolute font-display text-[var(--inkSoft)]/50 text-xs tracking-wider -translate-y-1/2 top-1/2 right-2">III</span> <span class="absolute -translate-x-1/2 left-1/2 font-display text-[var(--inkSoft)]/50 text-xs tracking-wider bottom-2">VI</span> <span class="absolute font-display text-[var(--inkSoft)]/50 text-xs tracking-wider -translate-y-1/2 top-1/2 left-2">IX</span></div><div class="rounded-full border absolute border-[var(--borderColor)]/50 border-dashed inset-7 pointer-events-none"></div><svg viewBox="0 0 288 288"class="absolute pointer-events-none inset-0 -rotate-90 h-full w-full z-10"><circle class="transition-all duration-1000 ease-linear"cx="144"cy="144"fill="transparent"id="timerProgressRing"r="120"stroke="var(--earth)"stroke-linecap="round"stroke-width="1.5"style="display:none"/></svg><div class="absolute -translate-x-1/2 left-1/2 font-display pointer-events-none select-none text-[10px] text-[var(--earthDeep)]/45 top-[35%] tracking-[0.25em] uppercase"id="clockSvgText">slow</div><div class="rounded-full absolute transition-transform -translate-x-1/2 bottom-1/2 left-1/2 origin-bottom duration-500 ease-out z-20 bg-[var(--earthDeep)] h-16 w-1"id="hourHand"></div><div class="rounded-full absolute transition-transform -translate-x-1/2 bottom-1/2 left-1/2 origin-bottom duration-500 ease-out z-20 bg-[var(--earth)] h-24 w-[1.5px]"id="minuteHand"></div><div class="rounded-full absolute transition-transform -translate-x-1/2 bottom-1/2 left-1/2 origin-bottom bg-[var(--terracotta)] duration-100 ease-linear h-28 w-[0.5px] z-30"id="secondHand"></div><div class="rounded-full absolute bg-[var(--cream)] border-2 border-[var(--earthDeep)] h-3.5 shadow-xs w-3.5 z-40"></div></div><div class="flex items-center flex-col mt-8 text-center"><div class="font-display font-light text-4xl tracking-widest text-[var(--ink)]"id="digitalTime">00：00</div><div class="text-[var(--inkSoft)] font-serif mt-1 text-xs tracking-wide"id="digitalDate">0000 · 一月 · 週一</div><p class="font-serif text-[11px] italic mt-3 text-[var(--earthDeep)]/75 tracking-wide"id="clockLabel">此刻，你在哪裡？</div><div class="items-center flex-col hidden text-center justify-center animate-fade-in absolute bg-[var(--warmWhite)]/95 duration-500 inset-0 p-6 transition-all z-50"id="timerDoneBanner"><div class="text-3xl animate-bounce mb-3">🔔</div><h3 class="font-serif text-[var(--ink)] font-normal text-lg">靜心圓滿</h3><p class="text-[var(--inkSoft)] leading-relaxed text-xs max-w-[200px] mt-1.5">當你回到喧囂，請記得帶上這份內極致的寧靜與和諧。</p><button class="rounded-full cursor-pointer mt-5 bg-[var(--earth)] hover:opacity-90 px-5 py-1.5 text-[var(--cream)] text-xs transition-opacity"onclick="resetTimer()">重置沙漏</button></div></div><div class="flex items-center flex-col hidden bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 gap-4 p-5 rounded-2xl shadow-xs w-full"id="timerControls"><div class="flex gap-1.5 flex-wrap justify-center"id="timerPresets"></div><div class="flex items-center mt-1 gap-4"><button class="flex items-center justify-center rounded-full cursor-pointer duration-300 h-10 transition-all w-10 bg-[var(--earth)] hover:scale-[1.05] shadow-xs text-[var(--cream)]"id="btnStartPause"title="開始靜心"><svg viewBox="0 0 24 24"class="fill-current ml-0.5 h-4 text-[var(--cream)] w-4"><polygon points="5 3 19 12 5 21 5 3"/></svg></button> <button class="flex items-center justify-center rounded-full border border-[var(--borderColor)] cursor-pointer duration-300 h-10 hidden hover:bg-[var(--cream)] hover:text-[var(--ink)] text-[var(--inkSoft)] transition-all w-10"id="btnReset"title="重置"><svg viewBox="0 0 24 24"class="h-4 w-4"fill="none"stroke="currentColor"stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"stroke-linecap="round"stroke-linejoin="round"/><polyline points="3 3 3 8 8 8"/></svg></button></div></div></section><section class="flex flex-col gap-6 lg:col-span-7"><div class="flex items-center flex-col bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 shadow-xs gap-6 group md:flex-row overflow-hidden p-6 relative rounded-3xl"><div class="absolute pointer-events-none inset-0 bg-gradient-to-tr from-[var(--sageLight)]/10 to-transparent"></div><div class="flex items-center justify-center relative h-40 md:h-44 md:w-44 shrink-0 w-40"><div class="rounded-full border absolute animate-ping border-[var(--sage)]/15 inset-2 opacity-25"></div><div class="flex items-center justify-center rounded-full relative bg-gradient-to-tr from-[var(--sage)] h-20 shadow-[0_8px_32px_rgba(138,158,140,0.25)] to-[var(--sageLight)] transition-transform w-20 z-10"id="breathingOrb"><div class="font-display font-light text-[var(--sageDeep)] text-xs tracking-wide"id="breathingOrbTimer"></div></div></div><div class="flex flex-col flex-1 justify-between h-full relative z-10"><div><div class="flex items-center justify-between"><h2 class="font-serif font-semibold text-[var(--ink)] text-base">正念呼吸引導</h2><div class="flex items-center gap-1.5"><span class="rounded-full h-1.5 w-1.5 animate-pulse bg-[var(--sage)]"></span> <span class="font-serif text-[10px] tracking-wider text-[var(--sageDeep)]">BREATHE WELL</span></div></div><div class="flex gap-1.5 flex-wrap mt-3"id="breathingPatterns"></div><p class="text-[var(--inkSoft)] leading-relaxed text-xs max-w-sm mt-3.5"id="breathingDesc"></div><div class="flex items-center justify-between border-[var(--borderColor)]/40 border-t pt-4 gap-4 mt-5"><div class="flex flex-col"><span class="font-serif text-[11px] text-[var(--sageDeep)]"id="breathingStatusText">點擊下方開始，跟隨氣息起伏</span> <span class="text-[var(--inkSoft)] text-[10px] font-serif hidden mt-0.5"id="breathingCycles"></span></div><button class="flex items-center gap-1.5 text-xs cursor-pointer bg-[var(--sageDeep)] border border-transparent duration-300 hover:opacity-90 hover:scale-[1.02] px-5 py-2 rounded-full shadow-xs text-[var(--cream)] transition-all"id="btnBreathTrigger"><svg viewBox="0 0 24 24"class="fill-current ml-0.5 h-3.5 w-3.5"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>開始呼吸</span></button></div></div></div><div class="grid grid-cols-1 gap-6 md:grid-cols-2"><div class="flex flex-col border bg-[var(--warmWhite)] border-[var(--borderColor)]/70 shadow-xs overflow-hidden p-6 relative rounded-3xl group h-56 justify-between"><span class="absolute font-display select-none right-4 text-4xl text-[var(--earth)]/10 top-4">“</span><div class="flex flex-col flex-1 justify-center"><p class="font-serif text-[var(--ink)] leading-relaxed tracking-wide duration-300 text-sm transition-opacity"id="quoteText"><p class="font-serif text-[11px] duration-300 mt-3.5 text-[var(--earthDeep)] transition-opacity"id="quoteSource"></div><div class="flex items-center gap-1.5 border-[var(--borderColor)]/30 border-t pt-3"id="quoteDots"></div></div><div class="flex flex-col border bg-[var(--warmWhite)] border-[var(--borderColor)]/70 shadow-xs overflow-hidden p-6 relative rounded-3xl h-56 justify-between"><form class="flex flex-col flex-1 justify-between h-full"id="thoughtForm"><div class="flex flex-col flex-1"id="scratchpadInputStep"><div class="flex items-center justify-between mb-2"><h3 class="flex items-center gap-1.5 font-serif font-semibold text-xs text-[var(--ink)]">意念釋放艙 <span class="font-display font-light italic text-[var(--earthDeep)] text-[10px]">Thought Oasis</span></h3><span class="text-[var(--inkSoft)]/60 font-sans text-[9px]">寫下執念，放手釋放</span></div><textarea class="p-3 border rounded-xl bg-[var(--cream)]/40 border-[var(--borderColor)]/50 duration-300 flex-1 focus:bg-[var(--warmWhite)] focus:border-[var(--earth)]/50 font-sans hover:bg-[var(--cream)]/60 outline-none placeholder-[var(--inkSoft)]/50 resize-none text-[var(--ink)] text-xs transition-all w-full"id="thoughtInput"placeholder="寫下此刻卡在腦海中的煩雜、執念或擔憂⋯"></textarea></div><div class="flex justify-end border-t border-[var(--borderColor)]/30 mt-3 pt-3"id="scratchpadInputButtons"><button class="flex items-center bg-[var(--earth)] cursor-pointer duration-300 rounded-full shadow-xs text-[var(--cream)] transition-all disabled:cursor-not-allowed disabled:opacity-40 font-sans gap-1 hover:opacity-95 md:text-xs px-4 py-1.5 text-[10px] tracking-wide"id="btnRelease"disabled type="submit"><svg viewBox="0 0 24 24"class="fill-current h-3 w-3"><line x1="22"x2="11"y1="2"y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>放手釋放</span></button></div></form><div class="flex items-center flex-col flex-1 hidden text-center justify-center animate-pulse"id="scratchpadReleasingStep"><div class="text-2xl mb-2">🎈</div><p class="font-serif text-xs text-[var(--earthDeep)]">正念釋放中 ⋯<p class="text-[var(--inkSoft)] text-[10px] mt-1">看著它化為肥皂泡，飄散於虛空</div><div class="flex items-center flex-col flex-1 hidden text-center justify-center animate-fade-in"id="scratchpadReleasedStep"><div class="mb-1.5 text-2xl">✨</div><p class="font-serif text-xs text-[var(--ink)] leading-relaxed">釋放完成。<p class="text-[var(--inkSoft)] text-[10px] mt-1 leading-relaxed max-w-[200px]">它只是一個念頭，並不代表真實的你。</p><button class="rounded-full cursor-pointer border border-[var(--borderColor)] text-[var(--inkSoft)] py-1 text-[10px] hover:text-[var(--ink)] transition-all mt-3.5 px-3.5"id="btnWriteAnother">再釋放一個</button></div></div></div><div class="min-h-[290px] bg-[var(--warmWhite)] border border-[var(--borderColor)]/70 p-6 relative rounded-3xl shadow-xs"><div class="flex items-center justify-between mb-5"><h2 class="flex items-center font-serif font-semibold text-[var(--ink)] gap-2 text-base">慢生活實踐 <span class="font-display font-light italic text-[var(--earthDeep)] md:text-sm text-xs">Slow Living Guide</span></h2><button class="flex items-center border rounded-full border-[var(--borderColor)] text-[var(--inkSoft)] cursor-pointer hidden hover:bg-[var(--cream)] hover:text-[var(--ink)] transition-all gap-1 px-3 py-1 text-[10px]"id="btnBackPractice">← 返回選單</button></div><div class="grid gap-4 sm:grid-cols-3 grid-cols-2"id="practicesGrid"></div><div class="flex flex-col hidden justify-between min-h-[180px]"id="practiceDetailBoard"><div class="flex flex-col flex-1 hidden justify-between"id="panel-food"><div><h3 class="font-serif font-semibold text-[var(--ink)] mb-2 text-sm"id="eatingStepTitle">🍵 1. 溫熱手捧</h3><p class="text-[var(--inkSoft)] leading-relaxed text-xs max-w-lg"id="eatingStepDesc"></div><div class="flex items-center justify-between border-[var(--borderColor)]/40 border-t pt-4 mt-4"><button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-4 disabled:cursor-not-allowed disabled:opacity-40"id="btnEatingPrev">上一步</button> <button class="rounded-full cursor-pointer font-sans text-[10px] md:text-xs py-1.5 text-[var(--cream)] bg-[var(--earthDeep)] hover:opacity-90 px-5"id="btnEatingNext">下一步</button></div></div><div class="flex items-center flex-col flex-1 hidden text-center py-4"id="panel-detox"><div class="font-display font-light text-4xl tracking-widest mb-2 text-[var(--ink)]"id="detoxTimerText">10:00</div><p class="text-[var(--inkSoft)] text-[10px] max-w-sm mb-4">請將手機扣過來放好，享受十分鐘純淨無干擾、無資訊的清明空間。<div class="flex items-center gap-3"><button class="rounded-full cursor-pointer font-sans py-1.5 text-[var(--cream)] hover:opacity-90 px-5 text-xs bg-[var(--sageDeep)]"id="btnDetoxTrigger">開啟 10 分鐘排毒</button></div><div class="flex items-center gap-1.5 font-serif mt-4 text-[9px] text-[var(--earthDeep)]"><span class="flex items-center justify-center rounded-full border bg-[var(--earth)]/10 border-[var(--earth)]/40 h-2 text-[9px] w-2">✓</span> <span>累計排毒：<strong class="font-normal font-sans text-[11px]"id="detoxAccumulated">0</strong> 分鐘</span> <span class="ml-2 animate-pulse hidden text-[var(--sageDeep)]"id="detoxPulsingText">● 靜心排毒中</span></div></div><div class="flex flex-col flex-1 hidden"id="panel-hygge"><p class="text-[var(--inkSoft)] text-[10px] mb-4 max-w-lg">拉動滑桿或點擊名稱，動態混音。由原生 Web Audio API 即時合成，無頻寬消耗，安全純粹。<div class="mb-4 gap-4 grid grid-cols-1 sm:grid-cols-3"><div class="flex flex-col border bg-[var(--cream)]/10 border-[var(--borderColor)]/40 gap-2 p-3 rounded-xl"id="indicator-rain"><button class="flex items-center gap-1.5 font-serif font-semibold text-xs cursor-pointer hover:opacity-85 text-left"id="toggle-rain">🌧️ 窗外微雨</button> <input class="accent-[var(--earth)] bg-[var(--borderColor)] cursor-pointer h-1 rounded-lg w-full"id="vol-rain"max="1"min="0"step="0.05"type="range"value="0"></div><div class="flex flex-col border bg-[var(--cream)]/10 border-[var(--borderColor)]/40 gap-2 p-3 rounded-xl"id="indicator-fireplace"><button class="flex items-center gap-1.5 font-serif font-semibold text-xs cursor-pointer hover:opacity-85 text-left"id="toggle-fireplace">🔥 壁爐柴火</button> <input class="accent-[var(--earth)] bg-[var(--borderColor)] cursor-pointer h-1 rounded-lg w-full"id="vol-fireplace"max="1"min="0"step="0.05"type="range"value="0"></div><div class="flex flex-col border bg-[var(--cream)]/10 border-[var(--borderColor)]/40 gap-2 p-3 rounded-xl"id="indicator-wind"><button class="flex items-center gap-1.5 font-serif font-semibold text-xs cursor-pointer hover:opacity-85 text-left"id="toggle-wind">🍃 幽谷微風</button> <input class="accent-[var(--earth)] bg-[var(--borderColor)] cursor-pointer h-1 rounded-lg w-full"id="vol-wind"max="1"min="0"step="0.05"type="range"value="0"></div></div><div class="flex border-[var(--borderColor)]/40 border-t pt-4 justify-end mt-2"><button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-4 hover:text-[var(--ink)] transition-all"id="btnHyggeMuteAll">全部靜音</button></div></div><div class="flex items-center flex-col flex-1 hidden text-center py-2"id="panel-niksen"><div class="flex items-center flex-col flex-1"id="niksenStepIdle"><p class="text-[var(--inkSoft)] text-[10px] max-w-sm mb-4 leading-relaxed">兩分鐘的徹底空白：別看手機、別看鍵盤、別滑滑鼠。如果操作過大，挑戰會立刻重置！</div><div class="flex items-center flex-col flex-1 hidden animate-pulse"id="niksenStepRunning"><div class="font-display font-light text-4xl tracking-widest mb-2 text-[var(--sageDeep)]"id="niksenTimerText">120s</div><p class="text-[var(--inkSoft)] text-[10px] mb-2">請放下所有操作。呼吸、放空、覺察此時時刻。<p class="text-[9px] text-[var(--terracotta)]">⚠️ 偵測到滑鼠或按鍵點擊即會中斷</div><div class="flex items-center flex-col flex-1 hidden animate-fade-in text-[var(--terracotta)]"id="niksenStepFailed"><div class="mb-1.5 text-3xl">🕯️</div><h4 class="font-serif font-semibold text-xs">挑戰未竟 ⋯ 念頭又起</h4><p class="text-[var(--inkSoft)] text-[10px] max-w-sm mt-1.5">沒關係的，大腦天生容易分心。將注意力輕輕拉回，隨時可以再次嘗試。</div><div class="flex items-center flex-col flex-1 hidden animate-fade-in text-[var(--sageDeep)]"id="niksenStepSuccess"><div class="mb-1.5 text-3xl">🪷</div><h4 class="font-serif font-semibold text-xs">兩分鐘的圓滿淨化</h4><p class="text-[var(--inkSoft)] text-[10px] max-w-sm mt-1.5">你成功在喧囂中安頓了自己兩分鐘。這是大腦最深刻的休息。</div><div class="flex items-center justify-center border-[var(--borderColor)]/40 border-t pt-4 gap-3 mt-4 w-full"><button class="rounded-full cursor-pointer font-sans py-1.5 text-[var(--cream)] hover:opacity-90 px-5 text-xs bg-[var(--earthDeep)]"id="btnNiksenTrigger">開啟兩分鐘放空</button></div></div><div class="flex flex-col flex-1 hidden justify-between"id="panel-walk"><div class="flex flex-col flex-1"id="walkStepConfig"><p class="text-[var(--inkSoft)] text-[10px] mb-4 leading-relaxed max-w-lg">「行禪經行」是移動中的靜心。請聽引導步速（提、跨、落）的引導秒數：<div class="flex gap-2 justify-center"><button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-3"id="walkTempo-4">4 秒/步</button> <button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-3"id="walkTempo-5">5 秒/步</button> <button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-3"id="walkTempo-6">6 秒/步</button> <button class="rounded-full cursor-pointer font-sans text-[10px] border border-[var(--borderColor)] py-1 text-[var(--inkSoft)] px-3"id="walkTempo-8">8 秒/步</button></div></div><div class="flex items-center flex-col flex-1 hidden text-center justify-center animate-pulse py-2"id="walkStepRunning"><div class="mb-1.5 text-2xl">🚶</div><div class="font-serif font-semibold text-sm text-[var(--sageDeep)]"id="walkRunningPhaseText">【提足】 緩緩抬起腳跟</div><p class="text-[var(--inkSoft)] text-[10px] max-w-sm mt-1">引導：木魚響起時提足、靜止時跨步、罄響起時平穩踩地。</div><div class="flex items-center justify-center border-[var(--borderColor)]/40 border-t pt-4 mt-5"><button class="rounded-full cursor-pointer font-sans py-1.5 text-[var(--cream)] hover:opacity-90 px-5 text-xs bg-[var(--sageDeep)]"id="btnWalkTrigger">開始定速引導</button></div></div><div class="flex flex-col flex-1 hidden"id="panel-read"><div class="flex items-center justify-between border-[var(--borderColor)]/30 border-b mb-3 pb-2"><div class="flex gap-1.5 flex-wrap"id="readBookSelectors"></div><span class="text-[var(--inkSoft)] font-serif text-[9px]"id="readAuthorText"></span></div><div class="flex items-center justify-center flex-1 bg-[var(--cream)]/45 border border-[var(--borderColor)]/30 min-h-[100px] p-4 rounded-xl"><p class="font-serif text-xs text-[var(--ink)] leading-relaxed italic text-center tracking-wide"id="readBookContent"></div><p class="mt-2 font-sans text-[9px] text-[var(--inkSoft)]/60 text-right">護眼防藍光紙質色調 · 專注沉浸閱讀</div></div></div></section></main><footer class="flex items-center flex-col relative w-full border-[var(--borderColor)]/40 border-t font-serif gap-2 justify-between max-w-7xl mt-8 mx-auto px-6 py-4 select-none sm:flex-row text-[11px] text-[var(--inkSoft)] z-10"><div>慢鐘 · 讓時間溫柔地流淌</div><div>純淨 · 無廣告 · 離線運作</div></footer><button onclick="history.back()"style="font-size:20px">↩️ Go Back</button><script src="./slow-clock.js"></script>
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>慢鐘 · Slow Clock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      /* Standard CSS Variable Definitions */
+      :root {
+        --cream: #F4EFEB;
+        --warmWhite: #FCFBF9;
+        --borderColor: #E6DDD4;
+        --clockBorder: #E6DDD4;
+        --earth: #8C7A6B;
+        --earthDeep: #594C42;
+        --ink: #2B2421;
+        --inkSoft: #6E625D;
+        --sage: #A3B19B;
+        --sageLight: #DCE2D9;
+        --sageDeep: #586751;
+        --terracotta: #C87A53;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(138, 158, 140, 0.3); border-radius: 9999px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(138, 158, 140, 0.5); }
+
+      body {
+        font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: var(--cream);
+        color: var(--ink);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        transition: background-color 0.5s ease, color 0.5s ease;
+        overflow-x: hidden;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+      }
+
+      /* Noise overlay background */
+      .noise-overlay::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.75;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      }
+
+      /* Botanical dots background pattern */
+      .bg-botanical-dots {
+        background-image: radial-gradient(rgba(196, 168, 130, 0.15) 1.5px, transparent 1.5px);
+        background-size: 24px 24px;
+      }
+
+      /* Floating leaves animation */
+      .leaf-container {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 0;
+      }
+      .leaf-drift {
+        position: absolute;
+        font-size: 1.125rem;
+        user-select: none;
+      }
+      @keyframes leafDrift {
+        0% { transform: translateY(105vh) translateX(0) rotate(0deg); opacity: 0; }
+        15% { opacity: 0.25; }
+        90% { opacity: 0.25; }
+        100% { transform: translateY(-10vh) translateX(50px) rotate(360deg); opacity: 0; }
+      }
+      .leaf-drift-1 { left: 10%; animation: leafDrift 18s linear infinite; }
+      .leaf-drift-2 { left: 35%; animation: leafDrift 24s linear infinite; animation-delay: 4s; }
+      .leaf-drift-3 { left: 65%; animation: leafDrift 21s linear infinite; animation-delay: 8s; }
+      .leaf-drift-4 { left: 88%; animation: leafDrift 28s linear infinite; animation-delay: 12s; }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+      @keyframes ping {
+        75%, 100% { transform: scale(1.4); opacity: 0; }
+      }
+      .animate-ping { animation: ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+      @keyframes bounce {
+        0%, 100% { transform: translateY(-10%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+        50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+      }
+      .animate-bounce { animation: bounce 1s infinite; }
+
+      /* Typography Helpers */
+      .font-serif { font-family: "Noto Serif TC", serif; }
+      .font-sans { font-family: "Noto Sans TC", sans-serif; }
+      .font-display { font-family: "Cormorant Garamond", serif; }
+
+      /* Layout & Structural Styling */
+      header {
+        position: relative;
+        z-index: 10;
+        max-width: 80rem;
+        width: 100%;
+        margin: 0 auto;
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        border-bottom: 1px solid rgba(230, 221, 212, 0.6);
+      }
+      @media (min-width: 768px) {
+        header {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+        }
+      }
+
+      .header-title-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .header-h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .header-subtitle {
+        font-weight: 300;
+        font-style: italic;
+        font-size: 1rem;
+        color: var(--earthDeep);
+      }
+      .season-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.2rem 0.65rem;
+        border-radius: 9999px;
+        border: 1px solid var(--borderColor);
+        font-size: 0.6875rem;
+        color: var(--inkSoft);
+        user-select: none;
+      }
+      .season-pip {
+        width: 0.375rem;
+        height: 0.375rem;
+        border-radius: 9999px;
+        display: inline-block;
+        transition: background-color 0.5s ease;
+      }
+
+      .icon-button {
+        background: transparent;
+        border: 1px solid var(--borderColor);
+        border-radius: 9999px;
+        padding: 0.35rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--inkSoft);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .icon-button:hover {
+        background-color: var(--cream);
+        color: var(--ink);
+        transform: translateY(-1px);
+      }
+
+      .theme-bar-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+      }
+      .theme-bar-label {
+        font-size: 0.6875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--inkSoft);
+        opacity: 0.75;
+        white-space: nowrap;
+      }
+      .theme-bar-container {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+      }
+
+      /* Main Grid */
+      main {
+        position: relative;
+        z-index: 10;
+        flex: 1;
+        max-width: 80rem;
+        width: 100%;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        align-items: start;
+      }
+      @media (min-width: 1024px) {
+        main {
+          grid-template-columns: repeat(12, minmax(0, 1fr));
+        }
+        .lg-col-5 { grid-column: span 5 / span 5; }
+        .lg-col-7 { grid-column: span 7 / span 7; }
+      }
+
+      /* Card Panels */
+      .panel-card {
+        background-color: var(--warmWhite);
+        border: 1px solid var(--clockBorder);
+        border-radius: 1.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+        transition: all 0.5s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .panel-card:hover {
+        box-shadow: 0 4px 32px rgba(0,0,0,0.05);
+      }
+
+      /* Left Clock Card */
+      .clock-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .clock-mode-tabs {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        padding: 0.25rem;
+        background-color: var(--cream);
+        border: 1px solid rgba(230,221,212,0.6);
+        border-radius: 9999px;
+        margin-bottom: 2rem;
+        max-width: 320px;
+        width: 100%;
+      }
+      .tab-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.4rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+      }
+      .tab-btn.active {
+        background-color: var(--warmWhite);
+        color: var(--ink);
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      }
+      .tab-btn.inactive {
+        color: var(--inkSoft);
+        font-weight: 300;
+      }
+
+      /* Clock Face */
+      .clock-face {
+        position: relative;
+        width: 16rem;
+        height: 16rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        border: 2px solid var(--clockBorder);
+        box-shadow: 0 8px 32px rgba(140,122,107,0.08);
+        background-color: rgba(244,239,235,0.45);
+      }
+      @media (min-width: 768px) {
+        .clock-face {
+          width: 18rem;
+          height: 18rem;
+        }
+      }
+
+      .roman-numeral {
+        position: absolute;
+        font-family: "Cormorant Garamond", serif;
+        color: rgba(110,98,93,0.5);
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+      }
+      .numeral-12 { top: 0.5rem; left: 50%; transform: translateX(-50%); }
+      .numeral-3 { right: 0.5rem; top: 50%; transform: translateY(-50%); }
+      .numeral-6 { bottom: 0.5rem; left: 50%; transform: translateX(-50%); }
+      .numeral-9 { left: 0.5rem; top: 50%; transform: translateY(-50%); }
+
+      .clock-dashed-ring {
+        position: absolute;
+        inset: 1.75rem;
+        border-radius: 9999px;
+        border: 1px dashed rgba(230,221,212,0.5);
+        pointer-events: none;
+      }
+
+      .clock-brand-text {
+        position: absolute;
+        top: 35%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "Cormorant Garamond", serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.25em;
+        color: rgba(89,76,66,0.45);
+        text-transform: uppercase;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      .hand {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        transform-origin: bottom center;
+        border-radius: 9999px;
+      }
+      .hour-hand {
+        width: 4px;
+        height: 4rem;
+        background-color: var(--earthDeep);
+        transform: translateX(-50%) rotate(0deg);
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 20;
+      }
+      .minute-hand {
+        width: 2px;
+        height: 6rem;
+        background-color: var(--earth);
+        transform: translateX(-50%) rotate(0deg);
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 20;
+      }
+      .second-hand {
+        width: 1px;
+        height: 7rem;
+        background-color: var(--terracotta);
+        transform: translateX(-50%) rotate(0deg);
+        transition: transform 0.1s linear;
+        z-index: 30;
+      }
+      .center-cap {
+        position: absolute;
+        width: 0.875rem;
+        height: 0.875rem;
+        border-radius: 9999px;
+        background-color: var(--cream);
+        border: 2px solid var(--earthDeep);
+        z-index: 40;
+      }
+
+      /* Timer Done Banner Modal */
+      .timer-done-modal {
+        position: absolute;
+        inset: 0;
+        background-color: rgba(252,251,249,0.96);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        text-align: center;
+        z-index: 50;
+      }
+
+      /* Timer Control Panel */
+      .timer-control-panel {
+        width: 100%;
+        background-color: var(--warmWhite);
+        border: 1px solid rgba(230,221,212,0.7);
+        border-radius: 1rem;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      /* General Buttons */
+      .btn-rounded {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        padding: 0.5rem 1.25rem;
+        border: 1px solid transparent;
+        font-family: inherit;
+      }
+      .btn-primary {
+        background-color: var(--earth);
+        color: var(--cream);
+      }
+      .btn-primary:hover {
+        opacity: 0.9;
+      }
+      .btn-sage {
+        background-color: var(--sageDeep);
+        color: var(--cream);
+      }
+      .btn-sage:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
+      }
+      .btn-outline {
+        border-color: var(--borderColor);
+        color: var(--inkSoft);
+        background: transparent;
+      }
+      .btn-outline:hover {
+        color: var(--ink);
+        background-color: var(--cream);
+      }
+
+      /* Breathing Section */
+      .breathing-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        /* 窄 viewport 時縮小欄距，把空間留給右側文字 */
+        gap: clamp(0.75rem, 4vw, 1.5rem);
+        width: 100%;
+      }
+      /* 呼吸圓球外圈：手機窄 viewport 時用 clamp() 讓尺寸隨螢幕寬度平滑縮小，
+         桌機／平板（≥768px）維持原本 11rem 固定尺寸 */
+      .breathing-orb-container {
+        position: relative;
+        width: clamp(4rem, 22vw, 10rem);
+        height: clamp(4rem, 22vw, 10rem);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      @media (min-width: 768px) {
+        .breathing-orb-container {
+          width: 11rem;
+          height: 11rem;
+        }
+      }
+      .breathing-orb {
+        width: clamp(2.5rem, 11vw, 5rem);
+        height: clamp(2.5rem, 11vw, 5rem);
+        border-radius: 9999px;
+        background: linear-gradient(to top right, var(--sage), var(--sageLight));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 32px rgba(138,158,140,0.25);
+        position: relative;
+        z-index: 10;
+        transition: transform 4s ease-in-out;
+      }
+      @media (min-width: 768px) {
+        .breathing-orb {
+          width: 5rem;
+          height: 5rem;
+        }
+      }
+      .breathing-orb-timer {
+        font-size: clamp(0.5rem, 1.6vw, 0.75rem);
+        color: var(--sageDeep);
+        letter-spacing: 0.05em;
+      }
+      /* 呼吸圓球外側光暈環：inset 隨容器等比縮小 */
+      .breathing-ring {
+        inset: clamp(0.25rem, 1.2vw, 0.5rem);
+      }
+      /* 窄／中窄 viewport（手機）：狀態文字與按鈕改為上下排列，
+         避免文字被壓成逐字換行；768px 以上（平板／桌機）維持原本左右並排 */
+      @media (max-width: 640px) {
+        .breathing-footer-row {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .breathing-footer-row button {
+          align-self: stretch;
+        }
+      }
+
+      /* Grid 2x2 for Quotes & Thought Oasis */
+      .grid-2col {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      @media (min-width: 768px) {
+        .grid-2col {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      /* Form inputs */
+      textarea.custom-input {
+        width: 100%;
+        background-color: rgba(244,239,235,0.4);
+        border: 1px solid rgba(230,221,212,0.6);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--ink);
+        outline: none;
+        resize: none;
+        transition: all 0.3s ease;
+        font-family: inherit;
+      }
+      textarea.custom-input:focus {
+        background-color: var(--warmWhite);
+        border-color: rgba(140,122,107,0.5);
+      }
+
+      /* Slow Living Bento Grid */
+      .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+      @media (min-width: 640px) {
+        .bento-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .bento-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background-color: var(--cream);
+        border: 1px solid var(--clockBorder);
+        border-radius: 1rem;
+        padding: 1.25rem 0.75rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid var(--borderColor);
+      }
+      .bento-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      }
+
+      .hidden { display: none !important; }
+
+      footer {
+        position: relative;
+        z-index: 10;
+        max-width: 80rem;
+        width: 100%;
+        margin: 2rem auto 0 auto;
+        padding: 1rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        border-top: 1px solid rgba(230,221,212,0.4);
+        font-size: 0.6875rem;
+        color: var(--inkSoft);
+        font-family: "Noto Serif TC", serif;
+        user-select: none;
+      }
+      @media (min-width: 640px) {
+        footer {
+          flex-direction: row;
+        }
+      }
+    </style>
+  </head>
+  <body class="noise-overlay bg-botanical-dots">
+    
+    <!-- Floating Leaves in Background -->
+    <div class="leaf-container">
+      <div class="leaf-drift leaf-drift-1">🍃</div>
+      <div class="leaf-drift leaf-drift-2">🌿</div>
+      <div class="leaf-drift leaf-drift-3">🍃</div>
+      <div class="leaf-drift leaf-drift-4">🌿</div>
+    </div>
+
+    <!-- Header Section -->
+    <header>
+      <div class="header-title-group">
+        <h1 class="header-h1 font-serif">
+          慢鐘 <span class="header-subtitle font-display">Slow Clock</span>
+        </h1>
+        <div class="season-badge font-serif">
+          <span id="seasonPip" class="season-pip"></span>
+          <span id="seasonLabel"></span>
+        </div>
+        <!-- Go Back Button -->
+        <button class="icon-button" onclick="history.back()" type="button" aria-label="返回 Go Back" title="返回 Go Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+          </svg>
+        </button>	  
+      </div>
+
+      <div class="theme-bar-wrapper">
+        <span class="theme-bar-label font-serif">畫境 Theme：</span>
+        <div id="themeBarContainer" class="theme-bar-container"></div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+      
+      <!-- LEFT COLUMN: Clock & Timer -->
+      <section class="lg-col-5" style="display:flex; flex-direction:column; gap:1.5rem; align-items:center;">
+        <div class="panel-card clock-card" style="width:100%;">
+          
+          <div class="clock-mode-tabs">
+            <button id="tabReal" class="tab-btn active">真實時鐘 Real Clock</button>
+            <button id="tabTimer" class="tab-btn inactive">正念沙漏 Mindful Timer</button>
+          </div>
+
+          <!-- Clock Dial -->
+          <div class="clock-face">
+            <div style="position:absolute; inset:0; border-radius:9999px; pointer-events:none;">
+              <span class="roman-numeral numeral-12">XII</span>
+              <span class="roman-numeral numeral-3">III</span>
+              <span class="roman-numeral numeral-6">VI</span>
+              <span class="roman-numeral numeral-9">IX</span>
+            </div>
+            <div class="clock-dashed-ring"></div>
+
+            <svg style="position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); pointer-events:none; z-index:10;" viewBox="0 0 288 288">
+              <circle id="timerProgressRing" cx="144" cy="144" r="120" fill="transparent" stroke="var(--earth)" stroke-width="1.5" stroke-linecap="round" style="transition: all 1s linear; display: none;" />
+            </svg>
+
+            <div id="clockSvgText" class="clock-brand-text">slow</div>
+
+            <div id="hourHand" class="hand hour-hand"></div>
+            <div id="minuteHand" class="hand minute-hand"></div>
+            <div id="secondHand" class="hand second-hand"></div>
+            <div class="center-cap"></div>
+          </div>
+
+          <!-- Time & Date Display -->
+          <div style="margin-top:2rem; display:flex; flex-direction:column; align-items:center; text-align:center;">
+            <div id="digitalTime" class="font-display" style="font-size:2.25rem; font-weight:300; letter-spacing:0.1em; color:var(--ink);">00：00</div>
+            <div id="digitalDate" class="font-serif" style="font-size:0.75rem; color:var(--inkSoft); margin-top:0.25rem; letter-spacing:0.05em;">0000 · 一月 January · 週一 Monday</div>
+            <p id="clockLabel" class="font-serif" style="font-size:0.75rem; font-style:italic; color:var(--earthDeep); margin-top:0.75rem; opacity:0.85;">此刻，你在哪裡？ Where are you right now?</p>
+          </div>
+
+          <!-- Timer Completion Modal Banner -->
+          <div id="timerDoneBanner" class="timer-done-modal hidden animate-fade-in">
+            <div class="animate-bounce" style="font-size:2rem; margin-bottom:0.75rem;">🔔</div>
+            <h3 class="font-serif" style="font-size:1.125rem; color:var(--ink); font-weight:500;">靜心圓滿 Meditation Complete</h3>
+            <p class="font-serif" style="font-size:0.75rem; color:var(--inkSoft); margin-top:0.5rem; line-height:1.6; max-width:240px;">
+              當你回到喧囂，請記得帶上這份內極致的寧靜與和諧。<br>
+              <span style="opacity:0.8; font-size:0.6875rem;">As you return to the noise, carry this inner peace with you.</span>
+            </p>
+            <button onclick="resetTimer()" class="btn-rounded btn-primary" style="margin-top:1.25rem;">重置沙漏 Reset Timer</button>
+          </div>
+        </div>
+
+        <!-- Timer Presets & Control Bar -->
+        <div id="timerControls" class="timer-control-panel hidden">
+          <div id="timerPresets" style="display:flex; flex-wrap:wrap; gap:0.375rem; justify-content:center;"></div>
+          <div style="display:flex; align-items:center; gap:1rem; margin-top:0.25rem;">
+            <button id="btnStartPause" class="btn-primary" style="width:2.5rem; height:2.5rem; border-radius:9999px; padding:0; display:flex; align-items:center; justify-content:center;" title="開始靜心 Start Meditation">
+              <svg style="width:1rem; height:1rem; fill:currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <button id="btnReset" class="btn-outline hidden" style="width:2.5rem; height:2.5rem; border-radius:9999px; padding:0; display:flex; align-items:center; justify-content:center;" title="重置 Reset">
+              <svg style="width:1rem; height:1rem;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Breathing, Quotes, Thought Oasis, Slow Practices -->
+      <section class="lg-col-7" style="display:flex; flex-direction:column; gap:1.5rem;">
+        
+        <!-- BREATHING SECTION -->
+        <div class="panel-card" style="display:flex; flex-direction:column; gap:1.5rem;">
+          <div style="display:flex; flex-direction:column; gap:1.5rem; width:100%;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:1.5rem;">
+              <div class="breathing-row">
+                
+                <div class="breathing-orb-container">
+                  <div style="position:absolute; border-radius:9999px; border:1px solid rgba(163,177,155,0.2);" class="animate-ping breathing-ring"></div>
+                  <div id="breathingOrb" class="breathing-orb">
+                    <div id="breathingOrbTimer" class="font-display breathing-orb-timer"></div>
+                  </div>
+                </div>
+
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between;">
+                  <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                      <h2 class="font-serif" style="font-size:1rem; font-weight:600; color:var(--ink);">正念呼吸引導 Mindful Breathing</h2>
+                      <div style="display:flex; align-items:center; gap:0.375rem;">
+                        <span style="width:0.375rem; height:0.375rem; border-radius:9999px; background-color:var(--sage);" class="animate-pulse"></span>
+                        <span class="font-serif" style="font-size:0.625rem; color:var(--sageDeep); letter-spacing:0.1em;">BREATHE WELL</span>
+                      </div>
+                    </div>
+                    <div id="breathingPatterns" style="display:flex; flex-wrap:wrap; gap:0.375rem; margin-top:0.75rem;"></div>
+                    <p id="breathingDesc" style="font-size:0.75rem; color:var(--inkSoft); line-height:1.6; margin-top:0.75rem;"></p>
+                  </div>
+                  
+                  <div class="breathing-footer-row" style="margin-top:1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top:1px solid rgba(230,221,212,0.4); padding-top:0.75rem;">
+                    <div style="display:flex; flex-direction:column;">
+                      <span id="breathingStatusText" class="font-serif" style="font-size:0.6875rem; color:var(--sageDeep);">點擊下方開始，跟隨氣息起伏 Click below to start, follow your breath</span>
+                      <span id="breathingCycles" class="font-serif hidden" style="font-size:0.625rem; color:var(--inkSoft); margin-top:0.125rem;"></span>
+                    </div>
+                    <button id="btnBreathTrigger" class="btn-rounded btn-sage">
+                      <svg style="width:0.875rem; height:0.875rem; fill:currentColor; margin-right:0.25rem;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>開始呼吸 Start Breathing</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUOTES & THOUGHT OASIS (2-Column Grid) -->
+        <div class="grid-2col">
+          <!-- Quotes Card -->
+          <div class="panel-card" style="height:14rem; display:flex; flex-direction:column; justify-content:space-between;">
+            <span class="font-display" style="position:absolute; top:1rem; right:1rem; font-size:2.5rem; color:rgba(140,122,107,0.15); user-select:none;">“</span>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <p id="quoteText" class="font-serif" style="font-size:0.8125rem; color:var(--ink); line-height:1.6; transition:opacity 0.3s; letter-spacing:0.025em; white-space:pre-line;"></p>
+              <p id="quoteSource" class="font-serif" style="font-size:0.6875rem; color:var(--earthDeep); margin-top:0.75rem; transition:opacity 0.3s;"></p>
+            </div>
+            <div id="quoteDots" style="display:flex; align-items:center; gap:0.375rem; border-top:1px solid rgba(230,221,212,0.3); padding-top:0.75rem;"></div>
+          </div>
+
+          <!-- Thought Oasis Card -->
+          <div class="panel-card" style="height:14rem; display:flex; flex-direction:column; justify-content:space-between;">
+            <form id="thoughtForm" style="flex:1; display:flex; flex-direction:column;  height:100%;">
+              <div id="scratchpadInputStep" style="flex:1; display:flex; flex-direction:column;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+                  <h3 class="font-serif" style="font-size:0.75rem; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:0.375rem;">
+                    意念釋放艙 <span class="font-display" style="font-weight:300; font-style:italic; color:var(--earthDeep); font-size:0.6875rem;">Thought Oasis</span>
+                  </h3>
+                  <span style="font-size:0.5625rem; color:rgba(110,98,93,0.7);">寫下執念，放手釋放 Write & Release</span>
+                </div>
+                <textarea id="thoughtInput" placeholder="寫下此刻卡在腦海中的煩雜、執念或擔憂⋯&#10;Write down any worries, attachments, or clutter in your mind..." class="custom-input" style="flex:1;"></textarea>
+              </div>
+              <div id="scratchpadInputButtons" style="display:flex; justify-content:flex-end; margin-top:0.5rem; border-top:1px solid rgba(230,221,212,0.3); padding-top:0.5rem;">
+                <button id="btnRelease" type="submit" disabled class="btn-rounded btn-primary" style="font-size:0.6875rem; padding:0.35rem 0.85rem;">
+                  <svg style="width:0.75rem; height:0.75rem; fill:currentColor; margin-right:0.25rem;" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>放手釋放 Release Thought</span>
+                </button>
+              </div>
+            </form>
+
+            <div id="scratchpadReleasingStep" class="hidden animate-pulse" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+              <div style="font-size:1.5rem; margin-bottom:0.5rem;">🎈</div>
+              <p class="font-serif" style="font-size:0.75rem; color:var(--earthDeep);">正念釋放中 ⋯ Releasing thought...</p>
+              <p style="font-size:0.625rem; color:var(--inkSoft); margin-top:0.25rem;">看著它化為肥皂泡，飄散於虛空 Watch it dissolve like bubbles into nothingness</p>
+            </div>
+
+            <div id="scratchpadReleasedStep" class="hidden animate-fade-in" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+              <div style="font-size:1.5rem; margin-bottom:0.375rem;">✨</div>
+              <p class="font-serif" style="font-size:0.75rem; color:var(--ink); line-height:1.5;">釋放完成。 Thought Released.</p>
+              <p style="font-size:0.625rem; color:var(--inkSoft); line-height:1.5; margin-top:0.25rem; max-width:220px;">它只是一個念頭，並不代表真實的你。<br><span style="opacity:0.85;">It is only a passing thought, not who you truly are.</span></p>
+              <button id="btnWriteAnother" class="btn-rounded btn-outline" style="margin-top:0.75rem; padding:0.25rem 0.75rem; font-size:0.625rem;">再釋放一個 Release Another</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BENTO SLOW LIVING GUIDE -->
+        <div class="panel-card" style="min-height:290px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem;">
+            <h2 class="font-serif" style="font-size:1rem; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:0.5rem;">
+              慢生活實踐 <span class="font-display" style="font-weight:300; font-style:italic; color:var(--earthDeep); font-size:0.875rem;">Slow Living Guide</span>
+            </h2>
+            <button id="btnBackPractice" class="btn-rounded btn-outline hidden" style="padding:0.25rem 0.75rem; font-size:0.6875rem;">← 返回選單 Back to Menu</button>
+          </div>
+
+          <!-- Practice Grid Selection -->
+          <div id="practicesGrid" class="bento-grid"></div>
+
+          <!-- Practice Detail Panels -->
+          <div id="practiceDetailBoard" class="hidden" style="min-height:180px; display:flex; flex-direction:column; justify-content:space-between;">
+            
+            <!-- PANEL 1: FOOD (Mindful Savoring) -->
+            <div id="panel-food" class="hidden" style="display:flex; flex-direction:column; justify-content:space-between; flex:1;">
+              <div>
+                <h3 id="eatingStepTitle" class="font-serif" style="font-size:0.875rem; font-weight:600; color:var(--ink); margin-bottom:0.5rem;">🍵 1. 溫熱手捧 Warm Cup</h3>
+                <p id="eatingStepDesc" style="font-size:0.75rem; color:var(--inkSoft); line-height:1.6; max-width:32rem; white-space:pre-line;"></p>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(230,221,212,0.4); padding-top:1rem; margin-top:1rem;">
+                <button id="btnEatingPrev" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.35rem 0.85rem;">上一步 Prev</button>
+                <button id="btnEatingNext" class="btn-rounded btn-sage" style="font-size:0.6875rem; padding:0.35rem 1rem;">下一步 Next</button>
+              </div>
+            </div>
+
+            <!-- PANEL 2: DETOX (Digital Oasis) -->
+            <div id="panel-detox" class="hidden" style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:1rem 0; flex:1;">
+              <div id="detoxTimerText" class="font-display" style="font-size:2.5rem; font-weight:300; letter-spacing:0.1em; color:var(--ink); margin-bottom:0.5rem;">10:00</div>
+              <p style="font-size:0.6875rem; color:var(--inkSoft); margin-bottom:1rem; max-width:24rem; line-height:1.5;">
+                請將手機扣過來放好，享受十分鐘純淨無干擾、無資訊的清明空間。<br>
+                <span style="opacity:0.8;">Place your phone face down and enjoy 10 minutes of undisturbed digital stillness.</span>
+              </p>
+              <div style="display:flex;  gap:0.75rem;">
+                <button id="btnDetoxTrigger" class="btn-rounded btn-sage" style="font-size:0.75rem; padding:0.4rem 1.25rem;">開啟 10 分鐘排毒 Start 10m Detox</button>
+              </div>
+              <div class="font-serif" style="margin-top:1rem; font-size:0.625rem; color:var(--earthDeep); display:flex; align-items:center; gap:0.375rem;">
+                <span style="width:0.5rem; height:0.5rem; border-radius:9999px; border:1px solid rgba(140,122,107,0.4); background-color:rgba(140,122,107,0.1); display:inline-flex; align-items:center; justify-content:center;">✓</span>
+                <span>累計排毒 Total Detox：<strong id="detoxAccumulated" style="font-size:0.6875rem; font-weight:400;">0</strong> 分鐘 mins</span>
+                <span id="detoxPulsingText" class="hidden animate-pulse" style="color:var(--sageDeep); margin-left:0.5rem;">● 靜心排毒中 Detox in progress...</span>
+              </div>
+            </div>
+
+            <!-- PANEL 3: HYGGE (Cozy Soundscape) -->
+            <div id="panel-hygge" class="hidden" style="display:flex; flex-direction:column; flex:1;">
+              <p style="font-size:0.6875rem; color:var(--inkSoft); margin-bottom:1rem; max-width:32rem; line-height:1.5;">
+                拉動滑桿或點擊名稱，動態混音。由原生 Web Audio API 即時合成，無頻寬消耗，安全純粹。<br>
+                <span style="opacity:0.8;">Adjust sliders or click labels to mix ambient sounds in real-time via Web Audio API.</span>
+              </p>
+              <div class="grid-2col" style="margin-bottom:1rem;">
+                <div id="indicator-rain" style="border:1px solid rgba(230,221,212,0.4); border-radius:0.75rem; padding:0.75rem; display:flex; flex-direction:column; gap:0.5rem; background-color:rgba(244,239,235,0.1);">
+                  <button id="toggle-rain" class="font-serif" style="font-size:0.75rem; font-weight:600; text-align:left; border:none; background:transparent; cursor:pointer; color:inherit;">🌧️ 窗外微雨 Gentle Rain</button>
+                  <input type="range" id="vol-rain" min="0" max="1" step="0.05" value="0" style="width:100%; accent-color:var(--earth); height:4px; cursor:pointer;">
+                </div>
+                <div id="indicator-fireplace" style="border:1px solid rgba(230,221,212,0.4); border-radius:0.75rem; padding:0.75rem; display:flex; flex-direction:column; gap:0.5rem; background-color:rgba(244,239,235,0.1);">
+                  <button id="toggle-fireplace" class="font-serif" style="font-size:0.75rem; font-weight:600; text-align:left; border:none; background:transparent; cursor:pointer; color:inherit;">🔥 壁爐柴火 Crackling Fireplace</button>
+                  <input type="range" id="vol-fireplace" min="0" max="1" step="0.05" value="0" style="width:100%; accent-color:var(--earth); height:4px; cursor:pointer;">
+                </div>
+                <div id="indicator-wind" style="border:1px solid rgba(230,221,212,0.4); border-radius:0.75rem; padding:0.75rem; display:flex; flex-direction:column; gap:0.5rem; background-color:rgba(244,239,235,0.1);">
+                  <button id="toggle-wind" class="font-serif" style="font-size:0.75rem; font-weight:600; text-align:left; border:none; background:transparent; cursor:pointer; color:inherit;">🍃 幽谷微風 Valley Wind</button>
+                  <input type="range" id="vol-wind" min="0" max="1" step="0.05" value="0" style="width:100%; accent-color:var(--earth); height:4px; cursor:pointer;">
+                </div>
+              </div>
+              <div style="display:flex; justify-content:flex-end; border-top:1px solid rgba(230,221,212,0.4); padding-top:0.75rem; margin-top:0.5rem;">
+                <button id="btnHyggeMuteAll" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.25rem 0.75rem;">全部靜音 Mute All</button>
+              </div>
+            </div>
+
+            <!-- PANEL 4: NIKSEN (Art of Idle) -->
+            <div id="panel-niksen" class="hidden" style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:0.5rem 0; flex:1;">
+              <div id="niksenStepIdle" style="flex:1; display:flex; flex-direction:column; align-items:center;">
+                <p style="font-size:0.6875rem; color:var(--inkSoft); line-height:1.6; max-width:24rem; margin-bottom:1rem;">
+                  兩分鐘的徹底空白：別看手機、別看鍵盤、別滑滑鼠。如果操作過大，挑戰會立刻重置！<br>
+                  <span style="opacity:0.8;">Two minutes of pure stillness: do not touch your mouse or keyboard. Any movement resets the challenge!</span>
+                </p>
+              </div>
+              <div id="niksenStepRunning" class="hidden animate-pulse" style="flex:1; display:flex; flex-direction:column; align-items:center;">
+                <div id="niksenTimerText" class="font-display" style="font-size:2.5rem; font-weight:300; letter-spacing:0.1em; color:var(--sageDeep); margin-bottom:0.5rem;">120s</div>
+                <p style="font-size:0.6875rem; color:var(--inkSoft); margin-bottom:0.5rem;">請放下所有操作。呼吸、放空、覺察此時時刻。 (Hands off. Breathe, relax, stay present.)</p>
+                <p style="font-size:0.625rem; color:var(--terracotta);">⚠️ 偵測到滑鼠或按鍵點擊即會中斷 (Warning: Mouse movement or key press will interrupt)</p>
+              </div>
+              <div id="niksenStepFailed" class="hidden animate-fade-in" style="flex:1; display:flex; flex-direction:column; align-items:center; color:var(--terracotta);">
+                <div style="font-size:1.75rem; margin-bottom:0.375rem;">🕯️</div>
+                <h4 class="font-serif" style="font-size:0.75rem; font-weight:600;">挑戰未竟 ⋯ 念頭又起 Challenge Interrupted</h4>
+                <p style="font-size:0.6875rem; color:var(--inkSoft); margin-top:0.375rem; max-width:24rem; line-height:1.5;">沒關係的，大腦天生容易分心。將注意力輕輕拉回，隨時可以再次嘗試。<br><span style="opacity:0.8;">It's okay! The mind naturally wanders. Gently return your focus and try again.</span></p>
+              </div>
+              <div id="niksenStepSuccess" class="hidden animate-fade-in" style="flex:1; display:flex; flex-direction:column; align-items:center; color:var(--sageDeep);">
+                <div style="font-size:1.75rem; margin-bottom:0.375rem;">🪷</div>
+                <h4 class="font-serif" style="font-size:0.75rem; font-weight:600;">兩分鐘的圓滿淨化 2 Minutes of Pure Stillness Completed</h4>
+                <p style="font-size:0.6875rem; color:var(--inkSoft); margin-top:0.375rem; max-width:24rem; line-height:1.5;">你成功在喧囂中安頓了自己兩分鐘。這是大腦最深刻的休息。<br><span style="opacity:0.8;">You rested quietly for two full minutes. A true deep break for your brain.</span></p>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem; border-top:1px solid rgba(230,221,212,0.4); padding-top:1rem; width:100%; justify-content:center;">
+                <button id="btnNiksenTrigger" class="btn-rounded btn-primary" style="font-size:0.75rem; padding:0.4rem 1.25rem;">開啟兩分鐘放空 Start 2m Idle</button>
+              </div>
+            </div>
+
+            <!-- PANEL 5: WALK (Slow Walking) -->
+            <div id="panel-walk" class="hidden" style="display:flex; flex-direction:column; justify-content:space-between; flex:1;">
+              <div id="walkStepConfig" style="flex:1; display:flex; flex-direction:column;">
+                <p style="font-size:0.6875rem; color:var(--inkSoft); line-height:1.6; margin-bottom:1rem; max-width:32rem;">
+                  「行禪經行」是移動中的靜心。請聽引導步速（提、跨、落）的引導秒數：<br>
+                  <span style="opacity:0.8;">"Mindful Walking" is meditation in motion. Select your step pace:</span>
+                </p>
+                <div style="display:flex; gap:0.5rem; justify-content:center;">
+                  <button id="walkTempo-4" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.25rem 0.75rem;">4 秒/步 (4s/step)</button>
+                  <button id="walkTempo-5" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.25rem 0.75rem;">5 秒/步 (5s/step)</button>
+                  <button id="walkTempo-6" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.25rem 0.75rem;">6 秒/步 (6s/step)</button>
+                  <button id="walkTempo-8" class="btn-rounded btn-outline" style="font-size:0.6875rem; padding:0.25rem 0.75rem;">8 秒/步 (8s/step)</button>
+                </div>
+              </div>
+              <div id="walkStepRunning" class="hidden animate-pulse" style="flex:1; display:flex; flex-direction:column; justify-content:center; padding:0.5rem 0; text-align:center;">
+                <div style="font-size:1.5rem; margin-bottom:0.375rem;">🚶</div>
+                <div id="walkRunningPhaseText" class="font-serif" style="font-size:0.875rem; font-weight:600; color:var(--sageDeep);">【提足 Lift】 緩緩抬起腳跟 Gently raise heel</div>
+                <p style="font-size:0.6875rem; color:var(--inkSoft); margin-top:0.25rem; max-width:24rem;">引導：木魚響起時提足、靜止時跨步、罄響起時平穩踩地。<br><span style="opacity:0.8;">Guide: Lift on woodblock, step forward, touch ground on chime.</span></p>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:center; margin-top:1.25rem; border-top:1px solid rgba(230,221,212,0.4); padding-top:1rem;">
+                <button id="btnWalkTrigger" class="btn-rounded btn-sage" style="font-size:0.75rem; padding:0.4rem 1.25rem;">開始定速引導 Start Guided Walk</button>
+              </div>
+            </div>
+
+            <!-- PANEL 6: READ (Focus Reading) -->
+            <div id="panel-read" class="hidden" style="display:flex; flex-direction:column; flex:1;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; border-bottom:1px solid rgba(230,221,212,0.3); padding-bottom:0.5rem;">
+                <div id="readBookSelectors" style="display:flex; flex-wrap:wrap; gap:0.375rem;"></div>
+                <span id="readAuthorText" class="font-serif" style="font-size:0.625rem; color:var(--inkSoft);"></span>
+              </div>
+              <div style="background-color:rgba(244,239,235,0.45); border:1px solid rgba(230,221,212,0.3); border-radius:0.75rem; padding:1rem; flex:1; display:flex; align-items:center; justify-content:center; min-height:100px;">
+                <p id="readBookContent" class="font-serif" style="font-size:0.75rem; color:var(--ink); line-height:1.6; font-style:italic; letter-spacing:0.025em; text-align:center; white-space:pre-line;"></p>
+              </div>
+              <p style="font-size:0.5625rem; color:rgba(110,98,93,0.6); text-align:right; margin-top:0.5rem;">護眼防藍光紙質色調 · 專注沉浸閱讀 Eye-soothing paper mode · Deep focus reading</p>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div>慢鐘 · 讓時間溫柔地流淌 Slow Clock · Let time flow gently</div>
+      <div>純淨 · 無廣告 · 離線運作 Pure · Ad-Free · Works Offline</div>
+    </footer>
+
+    <!-- Return to top/back button at bottom center -->
+    <div style="text-align: center; margin-bottom: 1.5rem; position: relative; z-index: 10;">
+      <button class="icon-button" onclick="history.back()" type="button" title="返回 Go Back" aria-label="返回 Go Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+        </svg>
+      </button>	  
+    </div>
+
+    <!-- JavaScript Logic Entry Point -->
+    <script src="./slow-clock.js"></script>
+  </body>
+</html>

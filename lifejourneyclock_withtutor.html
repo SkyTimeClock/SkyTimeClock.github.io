@@ -8,44 +8,23 @@
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;700&family=Noto+Sans+TC:wght@100;300;400&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html {
-    font-size: 16px;
-    width: 100%;
-    min-width: 375px;
-    overflow-x: auto;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    width: 100%;
-    min-width: 375px;
-    min-height: 100vh;
+  html, body {
+    width: 100%; min-height: 100vh;
     background: #c8e8a0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     font-family: 'Noto Sans TC', sans-serif;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   #bgCanvas {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    min-width: 100%;
-    height: 100vh;
-    z-index: 0;
-    pointer-events: none;
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: 0; pointer-events: none;
   }
 /* ── goback BUTTON ── */
 #gobackBtn{
-  position:fixed;
-  top: clamp(12px, 2.5vw, 18px);
-  left: clamp(10px, 2.5vw, 15px);
-  width: clamp(40px, 10vw, 50px);
-  height: clamp(40px, 10vw, 50px);
-  border-radius:50%;
+  position:fixed;top:18px;left:15px;
+  width:50px;height:50px;border-radius:50%;
   background:rgba(215, 250, 226, 0.55);
   border:1px solid rgba(130, 131, 131, 0.25);
   color:rgba(3, 141, 37, 0.7);
@@ -53,18 +32,14 @@
   display:flex;align-items:center;justify-content:center;
   transition:border-color .2s,box-shadow .2s;
   box-shadow:0 0 16px rgba(0,180,255,.1);
+  
   z-index:100;
 }
 #gobackBtn:hover{border-color:rgba(0,220,255,.7);box-shadow:0 0 20px rgba(0,200,255,.3);}
   /* ── 教學說明浮動按鈕 ── */
   #tutorial-btn {
-    position: fixed;
-    top: clamp(12px, 2.5vw, 20px);
-    right: clamp(10px, 2.5vw, 20px);
-    z-index: 999;
-    width: clamp(40px, 10vw, 50px);
-    height: clamp(40px, 10vw, 50px);
-    border-radius: 50%;
+    position: fixed; top: 20px; right: 20px; z-index: 999;
+    width: 50px; height: 50px; border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #a8e060, #4a8820);
     box-shadow: 0 4px 18px rgba(30,80,10,0.40), 0 1px 4px rgba(30,80,10,0.25),
                 inset 0 1px 2px rgba(255,255,255,0.30);
@@ -92,83 +67,40 @@
 
   .scene {
     display: flex; flex-direction: column;
-    align-items: center;
-    padding: clamp(1rem, 3vw, 1.375rem) clamp(0.5rem, 2vw, 1rem) clamp(1.2rem, 3.5vw, 1.5rem);
+    align-items: center; padding: 16px 0 22px;
     position: relative; z-index: 1;
-    width: 100%;
-    max-width: 100%;
-    min-width: 375px;
   }
 
   /* Title */
-  .clock-title {
-    text-align: center;
-    margin-bottom: clamp(0.5rem, 1.5vw, 0.625rem);
-    user-select: none;
-    width: 100%;
-    max-width: 600px;
-    padding: 0 clamp(0.5rem, 2vw, 1rem);
-  }
+  .clock-title { text-align: center; margin-bottom: 10px; user-select: none; }
   .title-zh {
-    display: block;
-    font-weight: 400;
-    font-size: clamp(1.75rem, 4vw, 2.5rem); /* clamp(1.75rem, 6vw, 2.5rem) */
-    letter-spacing: clamp(0.35rem, 2vw, 0.875rem);
+    display: block; font-weight: 400; font-size: 40px; letter-spacing: 14px;
     color: #1a3a08;
     text-shadow: 0 2px 8px rgba(60,120,10,0.22);
-    line-height: 1.25;
   }
   .title-en {
-    display: block;
-    margin-top: clamp(0.25rem, 0.8vw, 0.375rem); /* clamp(0.25rem, 0.8vw, 0.375rem) */
+    display: block; margin-top: 6px;
     font-family: 'Orbitron', monospace; font-weight: 400;
-    font-size: clamp(0.8rem, 2.4vw, 1.2rem); /* clamp(0.55rem, 1.8vw, 0.625rem); */
-    letter-spacing: clamp(0.125rem, 0.8vw, 0.3125rem);
-    text-transform: uppercase;
+    font-size: 10px; letter-spacing: 5px; text-transform: uppercase;
     color: #2d6010;
-    line-height: 1.4;
   }
   .title-line {
-    display: block;
-    width: 100%;
-    max-width: 400px;
-    height: 1.5px;
-    margin: clamp(0.4rem, 1vw, 0.5625rem) auto 0;
+    display: block; width: 100%; height: 1.5px; margin-top: 9px;
     background: linear-gradient(90deg, transparent, rgba(50,120,10,0.25) 15%,
       rgba(50,120,10,0.6) 50%, rgba(50,120,10,0.25) 85%, transparent);
   }
 
-  #clockCanvas {
-    display: block;
-    border-radius: 50%;
+  #clockCanvas { display: block; border-radius: 50%;
     box-shadow: 0 12px 50px rgba(20,60,5,0.35), 0 4px 16px rgba(20,60,5,0.2);
-    aspect-ratio: 1 / 1;
-    width: clamp(280px, 94vw, 640px);
-    height: clamp(280px, 94vw, 640px);
-    max-width: 640px;
-    max-height: 640px;
-    flex-shrink: 0;
-    object-fit: contain;
   }
 
   .bottom-row {
-    display: flex;
-    gap: clamp(0.6rem, 2vw, 1.5rem);
-    margin-top: clamp(0.5rem, 1.5vw, 0.625rem);
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: center;
-    max-width: 640px;
-    padding: 0 clamp(0.5rem, 2vw, 1rem);
+    display: flex; gap: 24px; margin-top: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
   }
   .char-info {
-    display: flex; align-items: center;
-    gap: clamp(0.3rem, 1vw, 0.45rem);
-    font-size: clamp(0.7rem, 2vw, 0.75rem);
-    letter-spacing: clamp(0.04rem, 0.2vw, 0.09375rem);
-    color: #000000;  /* #1a3a08 */
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; letter-spacing: 1.5px; color: #000000;  /* #1a3a08 */
     font-family: 'Noto Sans TC', sans-serif; font-weight: 400;
-    white-space: nowrap;
   }
   .char-dot { width: 15px; height: 15px; border-radius: 50%; }
   /* ── 圖例人物小圖示（取代原本純色圓點） ── */
@@ -178,51 +110,40 @@
     filter: drop-shadow(0 1px 3px rgba(20,60,5,0.28));
   }
   .time-display {
-    margin-top: clamp(1rem, 3vw, 1.5rem);
+    margin-top: 24px;
     font-family: 'Orbitron', monospace; font-weight: 400;
-    font-size: clamp(2rem, 7.5vw, 3rem);
-    letter-spacing: clamp(0.2rem, 1vw, 0.375rem);
-    color: #144900;
-    text-align: center;
+    font-size: 48px; letter-spacing: 6px; color: #144900;
   }
 
   /* ── Poem Section ── */
   .poem-section {
     position: relative; z-index: 1;
     width: min(680px, 92vw);
-    max-width: 680px;
-    min-width: 375px;
-    margin: clamp(1.5rem, 4vw, 2.25rem) auto clamp(2rem, 5vw, 3.5rem);
-    padding: 0 clamp(0.75rem, 2vw, 1rem);
+    margin: 36px auto 56px;
+    padding: 0 16px;
   }
 
   .poem-divider {
-    display: flex; align-items: center;
-    gap: clamp(0.6rem, 2vw, 0.875rem);
-    margin-bottom: clamp(1rem, 3vw, 1.75rem);
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
   }
   .poem-divider span {
     flex: 1; height: 1px;
     background: linear-gradient(90deg, transparent, rgba(30,100,5,0.4), transparent);
   }
-  .poem-divider-icon { font-size: clamp(1rem, 3vw, 1.25rem); opacity: 0.65; flex: none; }
+  .poem-divider-icon { font-size: 20px; opacity: 0.65; flex: none; }
 
-  .poem-title-block { text-align: center; margin-bottom: clamp(1rem, 3vw, 1.625rem); }
+  .poem-title-block { text-align: center; margin-bottom: 26px; }
   .poem-title-zh {
-    display: block;
-    font-size: clamp(1.25rem, 4.5vw, 1.5rem);
-    font-weight: 400;
-    letter-spacing: clamp(0.25rem, 1.5vw, 0.5rem);
-    color: #1a3a08;
+    display: block; font-size: 24px; font-weight: 400;
+    letter-spacing: 8px; color: #1a3a08;
     text-shadow: 0 1px 6px rgba(60,120,10,0.18);
-    margin-bottom: 0.375rem;
+    margin-bottom: 6px;
   }
   .poem-title-en {
     display: block;
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(0.85rem, 2.5vw, 1.125rem);
-    letter-spacing: clamp(0.125rem, 0.8vw, 0.25rem);
-    text-transform: uppercase;
+    font-family: 'Orbitron', monospace; font-size: 18px;
+    letter-spacing: 4px; text-transform: uppercase;
     color: #3a7010; opacity: 0.95;
   }
 
@@ -230,167 +151,119 @@
     background: rgba(255,255,255,0.38);
     border: 1px solid rgba(80,160,30,0.22);
     border-radius: 18px;
-    padding: clamp(1.25rem, 4vw, 2.25rem) clamp(1rem, 3.5vw, 2.25rem);
+    padding: 32px 36px;
     backdrop-filter: blur(6px);
     box-shadow: 0 6px 32px rgba(20,60,5,0.10), 0 1px 4px rgba(20,60,5,0.08);
   }
 
-  .poem-stanza { margin-bottom: clamp(1rem, 2.5vw, 1.375rem); }
+  .poem-stanza { margin-bottom: 22px; }
   .poem-stanza:last-child { margin-bottom: 0; }
 
   .poem-line {
     display: flex; align-items: baseline; gap: 0;
-    margin-bottom: 0.3125rem; flex-wrap: wrap;
+    margin-bottom: 5px; flex-wrap: wrap;
   }
   .poem-line:last-child { margin-bottom: 0; }
 
   .line-zh {
-    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
-    font-weight: 400;
-    letter-spacing: clamp(0.08rem, 0.3vw, 0.125rem);
-    color: #1a3a08; line-height: 1.8;
-    margin-right: 0.625rem;
+    font-size: 15px; font-weight: 400; letter-spacing: 2px;
+    color: #1a3a08; line-height: 1.8; margin-right: 10px;
   }
   .line-en {
-    font-size: clamp(0.7rem, 2vw, 0.75rem);
-    font-weight: 100;
-    letter-spacing: 0.03125rem;
+    font-size: 12px; font-weight: 100; letter-spacing: 0.5px;
     color: #3a6010; opacity: 0.8; line-height: 1.8; font-style: italic;
   }
 
   .poem-closing {
-    margin-top: clamp(1rem, 2.8vw, 1.625rem);
-    padding-top: clamp(0.8rem, 2.5vw, 1.25rem);
+    margin-top: 26px; padding-top: 20px;
     border-top: 1px solid rgba(80,160,30,0.18);
     text-align: center;
   }
   .poem-closing .line-zh {
-    display: block;
-    font-size: clamp(0.9375rem, 2.8vw, 1rem);
-    letter-spacing: clamp(0.1rem, 0.5vw, 0.1875rem);
-    color: #144900; font-weight: 400;
-    margin-bottom: 0.25rem; margin-right: 0;
+    display: block; font-size: 16px; letter-spacing: 3px;
+    color: #144900; font-weight: 400; margin-bottom: 4px; margin-right: 0;
   }
-  .poem-closing .line-en { display: block; margin-top: 0.125rem; }
+  .poem-closing .line-en { display: block; margin-top: 2px; }
 
   /* ── Classical Poem (近體詩) Section ── */
   .classical-poem-section {
     position: relative; z-index: 1;
     width: min(700px, 94vw);
-    max-width: 700px;
-    min-width: 375px;
-    margin: clamp(0.5rem, 1.5vw, 0.625rem) auto clamp(2rem, 5vw, 3rem);
-    padding: 0 clamp(0.75rem, 2vw, 1rem);
+    margin: 10px auto 48px;
+    padding: 0 16px;
   }
   .classical-poem-divider {
-    display: flex; align-items: center;
-    gap: clamp(0.6rem, 2vw, 0.875rem);
-    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+    display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
   }
   .classical-poem-divider .div-line {
     flex: 1; height: 1px;
     background: linear-gradient(90deg, transparent, rgba(30,100,5,0.38), transparent);
   }
-  .classical-poem-divider .div-icon { font-size: clamp(0.9rem, 2.5vw, 1.125rem); opacity: 0.58; flex: none; }
+  .classical-poem-divider .div-icon { font-size: 18px; opacity: 0.58; flex: none; }
 
-  .classical-poem-title-block { text-align: center; margin-bottom: clamp(1rem, 3vw, 1.5rem); }
+  .classical-poem-title-block { text-align: center; margin-bottom: 24px; }
   .classical-poem-title-zh {
-    display: block;
-    font-size: clamp(1.125rem, 4vw, 1.375rem);
-    font-weight: 400;
-    letter-spacing: clamp(0.25rem, 1.5vw, 0.625rem);
-    color: #1a3a08;
-    text-shadow: 0 1px 6px rgba(60,120,10,0.18);
-    margin-bottom: 0.4375rem;
+    display: block; font-size: 22px; font-weight: 400;
+    letter-spacing: 10px; color: #1a3a08;
+    text-shadow: 0 1px 6px rgba(60,120,10,0.18); margin-bottom: 7px;
   }
   .classical-poem-title-en {
-    display: block;
-    font-size: clamp(0.75rem, 2.4vw, 0.875rem);
-    font-weight: 400;
-    letter-spacing: clamp(0.0625rem, 0.4vw, 0.125rem);
-    color: #1a3a08;
-    text-shadow: 0 1px 6px rgba(60,120,10,0.18);
-    margin-bottom: 0.4375rem;
+    display: block; font-size: 14px; font-weight: 400;
+    letter-spacing: 2px; color: #1a3a08;
+    text-shadow: 0 1px 6px rgba(60,120,10,0.18); margin-bottom: 7px;
   }
 
   .classical-poem-title-form {
-    display: inline-block;
-    font-size: clamp(0.75rem, 2.2vw, 0.875rem);
-    letter-spacing: clamp(0.08rem, 0.4vw, 0.1875rem);
+    display: inline-block; font-size: 14px; letter-spacing: 3px;
     color: #3a7010; opacity: 0.98;
     font-family: 'Noto Sans TC', sans-serif; font-weight: 300;
     border: 1px solid rgba(80,160,30,0.28); border-radius: 20px;
-    padding: 0.125rem 0.75rem;
+    padding: 2px 12px;
   }
 
   .classical-poem-card {
     background: rgba(255,255,255,0.64);
     border: 1px solid rgba(80,160,30,0.20);
-    border-radius: 18px;
-    padding: clamp(1.25rem, 3.5vw, 1.875rem) clamp(1rem, 3.5vw, 2.25rem) clamp(1rem, 2.5vw, 1.5rem);
+    border-radius: 18px; padding: 30px 36px 24px;
     backdrop-filter: blur(7px);
     box-shadow: 0 6px 32px rgba(20,60,5,0.09), 0 1px 4px rgba(20,60,5,0.07);
   }
 
   .classical-line-block {
     display: flex; align-items: baseline; gap: 0;
-    padding: 0.375rem 0; flex-wrap: wrap;
+    padding: 6px 0; flex-wrap: wrap;
     border-bottom: 1px solid rgba(80,160,30,0.09);
   }
   .classical-line-block:last-of-type { border-bottom: none; }
 
   .cl-num {
-    font-size: clamp(0.55rem, 1.6vw, 0.625rem);
-    color: rgba(40,100,10,0.40);
-    letter-spacing: 0.02rem;
-    width: 1.25rem; flex: none;
-    font-family: 'Orbitron', monospace;
-    padding-top: 0.125rem;
+    font-size: 10px; color: rgba(40,100,10,0.40); letter-spacing: 0.3px;
+    width: 20px; flex: none; font-family: 'Orbitron', monospace; padding-top: 2px;
   }
   .cl-zh {
-    font-size: clamp(1.05rem, 3.8vw, 1.5rem);
-    font-weight: 400;
-    letter-spacing: clamp(0.2rem, 1.2vw, 0.5rem);
-    color: #1a3a08;
-    line-height: 1.9;
-    margin-right: 0.625rem;
-    min-width: clamp(120px, 30vw, 150px);
+    font-size: 24px; font-weight: 400; letter-spacing: 8px;
+    color: #1a3a08; line-height: 1.9; margin-right: 10px; min-width: 150px;
   }
   .cl-rhyme-marker {
-    font-size: clamp(0.75rem, 2.2vw, 0.875rem);
-    color: #66a72a;
-    letter-spacing: 0.03125rem;
-    opacity: 0.80; flex: none;
-    align-self: center;
-    margin-right: 0.625rem;
+    font-size: 14px; color: #66a72a; letter-spacing: 0.5px;
+    opacity: 0.80; flex: none; align-self: center; margin-right: 10px;
   }
   .cl-en {
-    font-size: clamp(0.75rem, 2.5vw, 1rem);
-    font-weight: 100;
-    letter-spacing: clamp(0.02rem, 0.2vw, 0.0625rem);
-    color: #444444; opacity: 0.95;
-    line-height: 1.9; font-style: italic;
+    font-size: 16px; font-weight: 100; letter-spacing: 1px;
+    color: #444444; opacity: 0.95; line-height: 1.9; font-style: italic;
   }
-  .couplet-gap { height: clamp(0.375rem, 1vw, 0.625rem); }
+  .couplet-gap { height: 10px; }
 
   .classical-poem-note {
-    margin-top: clamp(0.875rem, 2.5vw, 1.25rem);
-    padding-top: clamp(0.75rem, 2vw, 1rem);
+    margin-top: 20px; padding-top: 16px;
     border-top: 1px solid rgba(80,160,30,0.16);
-    display: flex;
-    gap: clamp(0.5rem, 1.8vw, 0.875rem);
-    justify-content: center;
-    flex-wrap: wrap;
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
     align-items: center;
   }
   .rhyme-badge {
-    font-size: clamp(0.65rem, 1.8vw, 0.6875rem);
-    letter-spacing: 0.0625rem;
-    color: #2d6010;
-    background: rgba(120,200,60,0.12);
-    border: 1px solid rgba(100,180,40,0.22);
-    border-radius: 20px;
-    padding: 0.2rem clamp(0.5rem, 1.5vw, 0.8125rem);
+    font-size: 11px; letter-spacing: 1px; color: #2d6010;
+    background: rgba(120,200,60,0.12); border: 1px solid rgba(100,180,40,0.22);
+    border-radius: 20px; padding: 3px 13px;
   }
 </style>
 </head>
@@ -403,10 +276,16 @@
    <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
   </svg>  
 -->  
-<svg width="40px" height="40px" fill="none" viewBox="-4 -4 32 32" stroke="currentColor" stroke-width="2.0">
+<svg width="40px" height="40px"  fill="none" viewBox="-4 -4 32 32" stroke="currentColor" stroke-width="2.0">
    <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
   </svg>  
 </button>
+
+<!-- ── 教學說明浮動按鈕 ── -->
+<a id="tutorial-btn" href="./lifejourneyclock_tutorial.html"  title="查看教學說明">
+  <span class="btn-icon">📖</span>
+  <span class="btn-label"></span>
+</a>
 
 <div class="scene">
   <header class="clock-title">
@@ -420,13 +299,13 @@
   <div class="time-display" id="timeDisp">00:00:00</div>
   <div class="bottom-row">
     <div class="char-info">
-      <canvas class="char-icon" id="iconMan" width="40" height="40"></canvas>Senior 男士 · hour
+      <canvas class="char-icon" id="iconMan" width="40" height="40"></canvas>Senior 中年男士 · 時針 (內圈)
     </div>
     <div class="char-info">
-      <canvas class="char-icon" id="iconWoman" width="40" height="40"></canvas>Young 女生 · minute
+      <canvas class="char-icon" id="iconWoman" width="40" height="40"></canvas>Young 年輕女生 · 分針 (中圈)
     </div>
     <div class="char-info">
-      <canvas class="char-icon" id="iconChild" width="40" height="40"></canvas>child 小孩 · second
+      <canvas class="char-icon" id="iconChild" width="40" height="40"></canvas>child 小孩 · 秒針 (外圈)
     </div>
   </div>
 </div>
@@ -519,7 +398,6 @@
     </div>
 	<br><br>
   </div><!-- /.classical-poem-card -->
-  <span class="classical-poem-title-en">Ver. 2026.8.22</span>    
 </section>
 
 <script src="./lifejourneyclock.js"></script>

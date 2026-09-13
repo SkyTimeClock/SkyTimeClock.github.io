@@ -1,1 +1,1360 @@
-<!doctypehtml><html lang="zh-TW"><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1"name="viewport"><title>3D輝光管數字時鐘 | 3DRetro Nixie Glow Tube Clock</title><link href="https://fonts.googleapis.com"rel="preconnect"><link href="https://fonts.gstatic.com"rel="preconnect"crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;700&family=Cinzel:wght@500;700&display=swap"rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script><script src="https://cdn.tailwindcss.com"></script><style>body{margin:0;padding:0;overflow:hidden;background-color:#050505;font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,inherit;user-select:none;color:#e2e8f0;cursor:crosshair}.scanlines{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.2) 50%);background-size:100% 4px;z-index:10;pointer-events:none;opacity:.4}.vignette{position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 50% 50%,transparent 55%,rgba(0,0,0,.7) 100%);z-index:11;pointer-events:none}.custom-scrollbar::-webkit-scrollbar{width:6px}.custom-scrollbar::-webkit-scrollbar-track{background:rgba(0,0,0,.4);border-radius:2px}.custom-scrollbar::-webkit-scrollbar-thumb{background:rgba(249,115,22,.25);border-radius:2px}.custom-scrollbar::-webkit-scrollbar-thumb:hover{background:rgba(249,115,22,.6)}</style><body class="min-h-screen relative"><div id="root"></div><div class="scanlines"></div><div class="vignette"></div><div class="h-full absolute inset-0 w-full z-0"id="webgl-container"></div><header class="flex items-center justify-between border-b select-none absolute backdrop-blur-md bg-black/45 border-white/5 left-0 px-4 py-3 top-0 w-full z-20"><div class="flex items-center gap-4"><div></div></div><div class="flex items-center gap-2"><div class="font-mono flex-col hidden items-end sm:flex"><span class="font-semibold uppercase tracking-widest text-[12px] text-orange-500">System Active</span> <span class="opacity-40 text-[12px] tracking-tighter uppercase">42.5°C Core Temp</span></div><button onclick="history.back()"class="border cursor-pointer rounded-sm bg-white/5 duration-150 hover:bg-white/10 transition-all border-white/10 font-medium hover:text-orange-400 px-1 py-1 shadow-lg text-orange-500 tracking-widest uppercase text-[20px]"id="config-toggle-btn"title="go back"><svg fill="none"stroke="white"stroke-width="2.0"viewBox="-4 -4 32 32"height="32px"width="32px"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"stroke-linecap="round"stroke-linejoin="round"/></svg></button> <button onclick="togglePopup()"class="border cursor-pointer rounded-sm bg-white/5 duration-150 hover:bg-white/10 transition-all border-white/10 font-medium hover:text-orange-400 px-1 py-1 shadow-lg text-orange-500 tracking-widest uppercase text-[22px]"id="config-toggle-btn"title="Settings">⚙</button></div></header><div class="font-mono uppercase tracking-widest absolute flex-col gap-1 hidden leading-relaxed left-8 md:flex opacity-55 pointer-events-none select-none text-[12px] text-white top-22 z-20"><div>Advanced Filament Chronometer</div><div>[左鍵拖曳 / Left Click] 旋轉角度</div><div>[右鍵拖曳 / Right Click] 移動相機</div><div>[滾輪縮放 / Scroll] 觀測鏡頭</div></div><div class="flex absolute select-none z-20 bottom-6 gap-2.5 left-6 max-w-[calc(100%-3rem)]"><button onclick="togglePresetsPopup(event)"class="border rounded-md flex items-center gap-1.5 active:scale-95 bg-zinc-950/90 border-white/15 cursor-pointer duration-150 font-bold font-sans hover:bg-zinc-850 hover:border-orange-500/40 md:text-xs px-3.5 py-2.5 shadow-lg text-[11.5px] text-white transition-all"id="presets-toggle-btn">🎨 風格預設 / Presets</button> <button onclick="toggleCustomSavesPopup(event)"class="border rounded-md flex items-center gap-1.5 active:scale-95 bg-zinc-950/90 border-white/15 cursor-pointer duration-150 font-bold font-sans hover:bg-zinc-850 hover:border-orange-500/40 md:text-xs px-3.5 py-2.5 shadow-lg text-[11.5px] text-white transition-all"id="custom-saves-toggle-btn">📂 自訂存檔 / Saves</button> <button onclick="history.back()"><svg fill="none"stroke="currentColor"stroke-width="2.5"viewBox="0 0 24 24"class="h-5 w-5"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"stroke-linecap="round"stroke-linejoin="round"/></svg></button><div class="border rounded-md flex flex-col absolute backdrop-blur-xl bg-[#0c0c0e]/95 border-white/15 bottom-14 hidden left-0 p-4 shadow-2xl z-25 gap-2.5 sm:w-[310px] w-[275px]"id="popup-presets"style="box-shadow:0 15px 40px rgba(0,0,0,.95)"><div class="flex items-center justify-between border-b border-white/10 mb-1 pb-2"><span class="font-mono font-bold md:text-[11px] text-[10px] text-slate-300 tracking-widest uppercase">🎨 PRESET PROFILES / 風格預設</span> <button onclick="closePresetsPopup()"class="cursor-pointer text-base hover:text-white px-1 text-white/40">×</button></div><button onclick='applyThemeSet("classic")'class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 bg-zinc-900/60 font-sans gap-2 hover:bg-zinc-800/80 md:text-xs px-3 py-2 shadow-sm text-[11px] text-left text-white w-full hover:border-orange-500/50"><span class="text-xs">🔸</span> 經典輝光 / CLASSIC</button> <button onclick='applyThemeSet("cyberpunk")'class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 bg-zinc-900/60 font-sans gap-2 hover:bg-zinc-800/80 md:text-xs px-3 py-2 shadow-sm text-[11px] text-left text-white w-full hover:border-teal-400/50"><span class="text-xs">🚀</span> 賽博科幻 / CYBER</button> <button onclick='applyThemeSet("atomic")'class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 bg-zinc-900/60 font-sans gap-2 hover:bg-zinc-800/80 md:text-xs px-3 py-2 shadow-sm text-[11px] text-left text-white w-full hover:border-green-400/50"><span class="text-xs">🟢</span> 黃昏射線 / ATOMIC</button> <button onclick='applyThemeSet("prism")'class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 bg-zinc-900/60 font-sans gap-2 hover:bg-zinc-800/80 md:text-xs px-3 py-2 shadow-sm text-[11px] text-left text-white w-full hover:border-fuchsia-400/50"><span class="text-xs">🌈</span> 彩虹極光 / PRISM</button> <button onclick='applyThemeSet("frozen")'class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 bg-zinc-900/60 font-sans gap-2 hover:bg-zinc-800/80 md:text-xs px-3 py-2 shadow-sm text-[11px] text-left text-white w-full hover:border-sky-400/50"><span class="text-xs">❄️</span> 極地白光 / FROZEN</button></div><div class="border rounded-md flex flex-col absolute backdrop-blur-xl bg-[#0c0c0e]/95 border-white/15 bottom-14 hidden left-0 p-4 shadow-2xl z-25 gap-3 sm:w-[335px] w-[295px]"id="popup-custom-saves"style="box-shadow:0 15px 40px rgba(0,0,0,.95)"><div class="flex items-center justify-between border-b border-white/10 mb-1 pb-2"><span class="font-mono font-bold md:text-[11px] text-[10px] text-slate-300 tracking-widest uppercase">📂 CUSTOM SAVES / 自訂存檔</span><div class="flex items-center gap-1.5"><button onclick="resetCustomPreset1()"class="border cursor-pointer border-white/15 transition-all duration-150 font-sans hover:border-orange-500/40 bg-zinc-950 hover:text-white md:text-[10.5px] px-2 py-0.5 rounded text-[9.5px] text-orange-400 tracking-wide"title="將自訂效果1重設為初始預設效果值">重設Reset</button> <button onclick="closeCustomSavesPopup()"class="cursor-pointer text-base hover:text-white px-1 text-white/40">×</button></div></div><div class="flex flex-col gap-2.5"><span class="border rounded-sm border-white/15 bg-black/75 inline-flex items-center justify-between overflow-hidden shadow-sm w-full"><button onclick="applyCustomPreset(1)"class="flex items-center gap-1.5 border-white/15 cursor-pointer duration-150 font-sans py-2.5 text-[11.5px] border-r flex-1 hover:text-white pl-3 text-left text-slate-200"id="load-btn-1">📂 自訂效果1</button> <button onclick="saveCustomPreset(1)"class="flex items-center cursor-pointer duration-150 font-sans py-2.5 font-bold px-3.5 gap-0.5 hover:bg-orange-950/20 hover:text-orange-300 text-[11px] text-orange-400"id="save-btn-1"title="將目前的參數儲存到自訂效果1">💾 儲存</button> </span><span class="border rounded-sm border-white/15 bg-black/75 inline-flex items-center justify-between overflow-hidden shadow-sm w-full"><button onclick="applyCustomPreset(2)"class="flex items-center gap-1.5 border-white/15 cursor-pointer duration-150 font-sans py-2.5 text-[11.5px] border-r flex-1 hover:text-white pl-3 text-left text-slate-200"id="load-btn-2">📂 自訂效果2</button> <button onclick="saveCustomPreset(2)"class="flex items-center cursor-pointer duration-150 font-sans py-2.5 font-bold px-3.5 gap-0.5 hover:bg-orange-950/20 hover:text-orange-300 text-[11px] text-orange-400"id="save-btn-2"title="將目前的參數儲存到自訂效果2">💾 儲存</button> </span><span class="border rounded-sm border-white/15 bg-black/75 inline-flex items-center justify-between overflow-hidden shadow-sm w-full"><button onclick="applyCustomPreset(3)"class="flex items-center gap-1.5 border-white/15 cursor-pointer duration-150 font-sans py-2.5 text-[11.5px] border-r flex-1 hover:text-white pl-3 text-left text-slate-200"id="load-btn-3">📂 自訂效果3</button> <button onclick="saveCustomPreset(3)"class="flex items-center cursor-pointer duration-150 font-sans py-2.5 font-bold px-3.5 gap-0.5 hover:bg-orange-950/20 hover:text-orange-300 text-[11px] text-orange-400"id="save-btn-3"title="將目前的參數儲存到自訂效果3">💾 儲存</button></span></div></div></div><div class="border rounded-sm overflow-hidden absolute backdrop-blur-xl bg-[#0a0a0c]/95 border-white/10 flex flex-col hidden max-h-[calc(100vh-10rem)] md:w-[500px] right-6 shadow-2xl top-28 w-[360px] z-30"id="popup-control"style="box-shadow:0 20px 50px rgba(0,0,0,.95)"><div class="flex items-center justify-between border-b select-none bg-zinc-900/80 border-white/15 cursor-move px-5 py-4"id="popup-header"><div class="flex items-center gap-3"><span class="rounded-full animate-pulse bg-orange-500 h-2.5 w-2.5"></span> <span class="font-bold font-sans uppercase text-sm text-white tracking-widest">Chrono Parameters 設定調校</span></div><button onclick="togglePopup()"class="border rounded-md flex items-center border-white/10 cursor-pointer duration-150 h-7 hover:bg-white/10 hover:text-white justify-center text-sm text-white/60 w-7">✕</button></div><div class="flex font-sans text-[11px] border-white/10 md:text-xs bg-black/50 border-b font-semibold tracking-wider uppercase"><button onclick='switchTab("colors")'class="cursor-pointer duration-150 border-b-2 flex-1 py-3.5 text-center border-orange-500 text-orange-500"id="tab-btn-colors">🎨 Filament / 顏色</button> <button onclick='switchTab("effects")'class="cursor-pointer duration-150 border-b-2 flex-1 py-3.5 text-center border-transparent hover:text-white text-white/50"id="tab-btn-effects">✨ Optics / 發光</button> <button onclick='switchTab("desk")'class="cursor-pointer duration-150 border-b-2 flex-1 py-3.5 text-center border-transparent hover:text-white text-white/50"id="tab-btn-desk">🪵 Reflection / 倒影</button></div><div class="space-y-6 custom-scrollbar flex-1 overflow-y-auto p-5 text-sm"><div class="space-y-4"id="tab-content-colors"><div class="flex border-b justify-between pb-2 border-white/5 flex-col gap-2 sm:flex-row sm:items-center"><span class="font-bold font-sans text-[12.5px] text-slate-300 tracking-wide">Independent 16-Way Filaments / 管孔發光設計：</span><div class="flex font-sans font-semibold uppercase gap-2 text-[10.5px]"><button onclick='syncAllColors("digits")'class="border rounded-md border-white/15 cursor-pointer transition-all bg-white/5 hover:bg-white/10 hover:text-white px-2.5 py-1 text-white/70">Sync Digits</button> <button onclick='syncAllColors("bases")'class="border rounded-md border-white/15 cursor-pointer transition-all bg-white/5 hover:bg-white/10 hover:text-white px-2.5 py-1 text-white/70">Sync Bases</button></div></div><div class="border rounded-md border-white/10 p-4 space-y-4 bg-black/45 shadow-inner"><div class="font-bold border-b border-white/10 gap-1 grid grid-cols-8 pb-2 text-[11px] text-center text-slate-400 tracking-wider uppercase"><div>H1</div><div>H2</div><div>C1</div><div>M1</div><div>M2</div><div>C2</div><div>S1</div><div>S2</div></div><div class="space-y-4"><div class="space-y-2"><div class="font-bold text-orange-400 font-sans text-[11.5px] tracking-wider uppercase">❶ Filament Glow / 燈管特調：</div><div class="grid gap-2 grid-cols-8"><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-0"type="color"value="#ff4400"onchange='updateColorParam("digitColors",0,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D1</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-0">#FF4400</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-1"type="color"value="#ff4400"onchange='updateColorParam("digitColors",1,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D2</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-1">#FF4400</span></div><div class="border rounded-md flex items-center gap-1.5 bg-zinc-950/80 flex-col p-1.5 border-orange-500/30"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-sep-0"type="color"value="#ffa700"onchange='updateColorParam("separatorColors",0,this.value)'> <span class="font-mono font-bold text-[10.5px] text-orange-400">C1</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-orange-400/60"id="hex-sep-0">#FFA700</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-2"type="color"value="#ff4400"onchange='updateColorParam("digitColors",2,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D3</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-2">#FF4400</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-3"type="color"value="#ff4400"onchange='updateColorParam("digitColors",3,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D4</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-3">#FF4400</span></div><div class="border rounded-md flex items-center gap-1.5 bg-zinc-950/80 flex-col p-1.5 border-orange-500/30"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-sep-1"type="color"value="#ffa700"onchange='updateColorParam("separatorColors",1,this.value)'> <span class="font-mono font-bold text-[10.5px] text-orange-400">C2</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-orange-400/60"id="hex-sep-1">#FFA700</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-4"type="color"value="#ff4400"onchange='updateColorParam("digitColors",4,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D5</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-4">#FF4400</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-digit-5"type="color"value="#ff4400"onchange='updateColorParam("digitColors",5,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">D6</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-digit-5">#FF4400</span></div></div></div><div class="space-y-2 pt-2"><div class="font-bold font-sans uppercase tracking-wider text-[11.5px] text-[#60a5fa]">❷ Base Glowing Chassis / 底座燈孔：</div><div class="grid gap-2 grid-cols-8"><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-0"type="color"value="#0088ff"onchange='updateColorParam("baseColors",0,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B1</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-0">#0088FF</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-1"type="color"value="#0088ff"onchange='updateColorParam("baseColors",1,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B2</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-1">#0088FF</span></div><div class="border rounded-md flex items-center gap-1.5 bg-zinc-950/80 flex-col p-1.5 border-blue-500/30"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-2"type="color"value="#ff00ff"onchange='updateColorParam("baseColors",2,this.value)'> <span class="font-mono font-bold text-[10.5px] text-blue-400">B3</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-blue-300/60"id="hex-base-2">#FF00FF</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-3"type="color"value="#0088ff"onchange='updateColorParam("baseColors",3,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B4</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-3">#0088FF</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-4"type="color"value="#0088ff"onchange='updateColorParam("baseColors",4,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B5</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-4">#0088FF</span></div><div class="border rounded-md flex items-center gap-1.5 bg-zinc-950/80 flex-col p-1.5 border-blue-500/30"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-5"type="color"value="#ff00ff"onchange='updateColorParam("baseColors",5,this.value)'> <span class="font-mono font-bold text-[10.5px] text-blue-400">B6</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-blue-300/60"id="hex-base-5">#FF00FF</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-6"type="color"value="#0088ff"onchange='updateColorParam("baseColors",6,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B7</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-6">#0088FF</span></div><div class="border rounded-md flex items-center border-white/10 bg-zinc-950/80 flex-col gap-1.5 p-1.5"><input class="border cursor-pointer border-white/15 rounded-sm bg-transparent h-8 w-8"id="color-base-7"type="color"value="#0088ff"onchange='updateColorParam("baseColors",7,this.value)'> <span class="font-mono font-bold text-[10.5px] text-white/75">B8</span> <span class="font-mono font-semibold md:text-[9px] select-all text-[8.5px] tracking-tighter text-white/50"id="hex-base-7">#0088FF</span></div></div></div></div><div class="border rounded-md border-white/10 shadow-sm py-2.5 uppercase bg-black/60 font-mono leading-normal md:text-[11px] text-[10px] text-center text-slate-300 tracking-widest">🌐 Multichannel 16-Way Independent Bus Matrix</div></div><div class="space-y-2 pt-2 border-t border-white/5"><label class="font-semibold text-slate-300 block font-sans md:text-[13px] text-[12px] tracking-wide">⚡ Chaotic Quantum Mutation / 混亂色彩突變：</label><div class="flex gap-2"><button onclick='mutateColors("digits")'class="border rounded-md border-white/10 shadow-sm cursor-pointer font-sans md:text-xs text-[11px] bg-white/5 flex-1 font-bold hover:bg-white/10 hover:text-white py-2.5 text-white/75 tracking-wider transition-colors uppercase">🔀 Mutate Digits</button> <button onclick='mutateColors("bases")'class="border rounded-md border-white/10 shadow-sm cursor-pointer font-sans md:text-xs text-[11px] bg-white/5 flex-1 font-bold hover:bg-white/10 hover:text-white py-2.5 text-white/75 tracking-wider transition-colors uppercase">🔀 Mutate Bases</button></div></div></div><div class="space-y-6 hidden"id="tab-content-effects"><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">💡 Emissive Power / 輝光亮度</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-glow-boost">1.50</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-glow-boost"type="range"value="1.5"max="5.5"min="0.3"oninput='updateEffectSlider("glowIntensity",this.value,"val-glow-boost")'step="0.05"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">🔆 Neon Spread / 霓虹氣化暈散</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-glow-spread">25 px</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-glow-spread"type="range"value="25"max="80"min="8"oninput='updateEffectSlider("glowSpread",this.value,"val-glow-spread"," px")'step="1"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">🌀 Outer Corona / 外層離子光圈</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-glow-corona">35 px</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-glow-corona"type="range"value="35"max="100"min="15"oninput='updateEffectSlider("glowOuterBlur",this.value,"val-glow-corona"," px")'step="1"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">📏 Filament Line / 燈芯細管線徑</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-core-thick">2.0 mm</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-core-thick"type="range"value="2.0"max="5.5"min="0.8"oninput='updateEffectSlider("coreThickness",this.value,"val-core-thick"," mm")'step="0.1"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">🕸️ Shadow Wire / 未點亮管絲暗色度</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-unlit-op">5.0 %</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-unlit-op"type="range"value="5"max="20"min="0"oninput='updateEffectSlider("unlitOpacity",this.value/100,"val-unlit-op"," %",this.value)'step="0.5"><p class="border font-mono md:text-[11px] text-[10px] uppercase bg-black/35 border-white/5 p-2 rounded text-white/40 tracking-wider">Simulates the visual presence of nested unlit cathode grid filaments.</div><div class="border rounded-md border-white/10 shadow-sm bg-black/40 p-4 space-y-4"><div class="flex items-center justify-between"><span class="font-semibold font-sans tracking-wide md:text-sm text-slate-200 text-xs">🔥 Plasma Discharge Fluctuation / 顫動微秒</span> <label class="cursor-pointer inline-flex items-center relative select-none"><input class="peer sr-only"id="check-ficker"type="checkbox"onchange="updateFlickerToggle(this.checked)"checked><div class="rounded-full after:absolute after:bg-zinc-400 after:border after:border-zinc-400 after:content-[''] after:h-4.5 after:left-[3px] after:rounded-full after:top-[3px] after:transition-all after:w-4.5 bg-zinc-800 h-5.5 peer peer-checked:after:border-white peer-checked:after:translate-x-full peer-checked:bg-orange-600 w-10"></div></label></div><div class="space-y-2"><div class="flex font-sans justify-between md:text-sm text-xs"><span class="text-white/50">organic amplitude / 能量頻寬</span> <span class="font-bold text-orange-400 md:text-sm text-xs"id="val-flicker-amp">4.0 %</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-flicker-amp"type="range"value="4"max="15"min="0"oninput='updateEffectSlider("flickerIntensity",this.value/100,"val-flicker-amp"," %",this.value)'step="0.5"></div></div></div><div class="space-y-6 hidden"id="tab-content-desk"><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">🪞 Desk Refraction / 桌面反光強度</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-ref-intensity">70 %</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-ref-intensity"type="range"value="70"max="100"min="0"oninput='updateEffectSlider("reflectionIntensity",this.value/100,"val-ref-intensity"," %",this.value)'step="5"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">💨 Specular Roughness / 反光衰減模糊</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-ref-rough">60 %</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-ref-rough"type="range"value="60"max="100"min="10"oninput='updateEffectSlider("reflectionBlur",this.value/100,"val-ref-rough"," %",this.value)'step="5"></div><div class="space-y-2.5"><div class="flex font-sans justify-between md:text-sm text-xs tracking-wide"><span class="font-semibold text-slate-300">📐 Projection Angle / 電致折光傾角</span> <span class="font-bold text-orange-400 md:text-base text-sm"id="val-ref-tilt">25 °</span></div><input class="cursor-pointer w-full accent-orange-500 appearance-none bg-white/10 h-1.5 hover:bg-white/20 rounded-full"id="slider-ref-tilt"type="range"value="25"max="60"min="-60"oninput='updateEffectSlider("reflectionAngle",this.value,"val-ref-tilt"," °")'step="2"><p class="border font-mono md:text-[11px] text-[10px] uppercase bg-black/35 border-white/5 p-2 rounded text-white/40 tracking-wider">Modulates perspective matrix transformation of desk-level light projections.</div><div class="space-y-2.5"><label class="font-semibold text-slate-300 block font-sans md:text-[13px] text-[12px] tracking-wide">🌳 Quantum Refractive Substrate / 桌面材質貼皮：</label> <select class="border rounded-md border-white/15 cursor-pointer font-sans px-3.5 text-white bg-zinc-900 focus:border-orange-500 focus:outline-none py-3 shadow-sm text-sm w-full"id="select-desk-style"onchange="updateDeskStyle(this.value)"><option class="bg-zinc-950"value="rosewood">🍂 頂級酸枝紅木 / Luxury Rosewood<option class="bg-zinc-950"value="obsidian">🌌 磨砂黑曜石板 / Matte Obsidian<option class="bg-zinc-950"value="cobalt">💿 深海鈷藍鋼板 / Cobalt Steel<option class="bg-zinc-950"value="brass">👑 拉絲拉紋黃銅 / Brushed Brass<option class="bg-zinc-950"value="carbon">🏁 碳纖卡本矩陣 / Carbon Matrix</select></div></div></div><div class="select-none bg-zinc-900/98 border-t border-white/10 p-5 space-y-4"><div class="flex border-b border-white/5 flex-col gap-2.5 pb-4"><span class="font-mono font-semibold text-white/50 md:text-[11px] text-[10px] text-[11px] tracking-widest uppercase">💾 快速儲存欄位 / SLOTS PROFILE</span><div class="grid gap-2 grid-cols-3"><div class="border rounded-md flex items-center shadow-sm text-[11px] bg-black/60 border-white/20 font-mono justify-between overflow-hidden"><button onclick="applyCustomPreset(1)"class="text-center flex-1 hover:text-white font-medium font-sans hover:bg-white/5 py-2 text-[11.5px] text-slate-300 transition-all"id="load-btn-bottom-1">自訂效果1</button> <span class="bg-white/20 h-4 w-px"></span> <button onclick="saveCustomPreset(1)"class="hover:bg-white/5 font-sans py-2 transition-all hover:text-orange-300 px-2.5 text-[11px] text-orange-400"id="save-btn-bottom-1">儲存</button></div><div class="border rounded-md flex items-center shadow-sm text-[11px] bg-black/60 border-white/20 font-mono justify-between overflow-hidden"><button onclick="applyCustomPreset(2)"class="text-center flex-1 hover:text-white font-medium font-sans hover:bg-white/5 py-2 text-[11.5px] text-slate-300 transition-all"id="load-btn-bottom-2">自訂效果2</button> <span class="bg-white/20 h-4 w-px"></span> <button onclick="saveCustomPreset(2)"class="hover:bg-white/5 font-sans py-2 transition-all hover:text-orange-300 px-2.5 text-[11px] text-orange-400"id="save-btn-bottom-2">儲存</button></div><div class="border rounded-md flex items-center shadow-sm text-[11px] bg-black/60 border-white/20 font-mono justify-between overflow-hidden"><button onclick="applyCustomPreset(3)"class="text-center flex-1 hover:text-white font-medium font-sans hover:bg-white/5 py-2 text-[11.5px] text-slate-300 transition-all"id="load-btn-bottom-3">自訂效果3</button> <span class="bg-white/20 h-4 w-px"></span> <button onclick="saveCustomPreset(3)"class="hover:bg-white/5 font-sans py-2 transition-all hover:text-orange-300 px-2.5 text-[11px] text-orange-400"id="save-btn-bottom-3">儲存</button></div></div></div><div class="flex items-center justify-between font-mono text-[11px] text-white/40 tracking-widest uppercase"><span>Chrono Engine v2.2.0</span> <button onclick="resetSettings()"class="border cursor-pointer border-white/15 rounded-sm bg-white/5 duration-150 hover:bg-white/10 hover:text-white px-3.5 py-2 text-[11px] text-white/70 transition-all">Reset to Factory</button></div></div></div><script src="./3DGlowTubeClock.js"></script>
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D輝光管數字時鐘 | 3DRetro Nixie Glow Tube Clock</title>
+    <!-- Google Fonts for retro industrial type -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;700&family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Loading Three.js and OrbitControls from highly stable CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+      /* Base font styles & overall look */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #050505;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, inherit;
+        user-select: none;
+        color: #e2e8f0;
+        cursor: crosshair;
+        position: relative;
+        min-height: 100vh;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      /* Dynamic CRT scanline overlay */
+      .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          rgba(18, 16, 16, 0) 50%, 
+          rgba(0, 0, 0, 0.2) 50%
+        );
+        background-size: 100% 4px;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      
+      /* Subtle vignette for vintage camera atmosphere */
+      .vignette {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.70) 100%);
+        z-index: 11;
+        pointer-events: none;
+      }
+      
+      /* Custom styled scrollbar for Settings Pop-up */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(249, 115, 22, 0.25);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(249, 115, 22, 0.6);
+      }
+
+      /* ============ 共用基礎工具類 (取代 Tailwind Utility) ============ */
+      .hidden { display: none !important; }
+      .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; }
+      .font-sans { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+      /* 直向間距堆疊工具 (取代 space-y-*) */
+      .stack-sm > * + * { margin-top: 4px; }  /*  8px; */
+      .stack-xs > * + * { margin-top: 5px; } /*  10px; */
+      .stack-md > * + * { margin-top: 6px; } /*  12px; */
+      .stack   > * + * { margin-top: 8px; }   /*  16px; */
+      .stack-lg > * + * { margin-top: 12px; } /*  24px; */      
+
+      @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+      /* ============ WebGL 容器 ============ */
+      .webgl-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+      }
+
+      /* ============ 頂部 HEADER BAR ============ */
+      .app-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(12px);
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+      .header-left { display: flex; align-items: center; gap: 16px; }
+      .header-right { display: flex; gap: 8px; align-items: center; }
+
+      /* ============ 主頁左上角 目前風格來源 可選按鈕 + 下拉清單 ============ */
+      .style-selector-wrap { position: relative; }
+      .style-selector-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5);
+      }
+      .style-selector-btn:hover { border-color: rgba(249, 115, 22, 0.5); background: rgba(0, 0, 0, 0.65); }
+      .style-selector-btn:active { transform: scale(0.97); }
+
+      .style-selector-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        width: 250px;
+        background: rgba(12, 12, 14, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        z-index: 40;
+        backdrop-filter: blur(24px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.95);
+      }
+      .style-menu-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        padding: 2px 2px 4px;
+      }
+      .style-menu-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 4px 0;
+      }
+      .style-menu-item {
+        width: 100%;
+        padding: 8px 12px;
+        text-align: left;
+        border-radius: 6px;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(24, 24, 27, 0.6);
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s;
+      }
+      .style-menu-item:hover { background: rgba(39, 39, 42, 0.8); border-color: rgba(249, 115, 22, 0.5); }
+      .style-menu-item.active { border-color: #f97316; color: #fb923c; background: rgba(67, 20, 7, 0.35); }
+
+      .header-status {
+        display: none;
+        flex-direction: column;
+        align-items: flex-end;
+      }
+      @media (min-width: 640px) { .header-status { display: flex; } }
+      .status-label-active {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #f97316;
+        font-weight: 600;
+      }
+      .status-label-temp {
+        font-size: 12px;
+        opacity: 0.4;
+        text-transform: uppercase;
+        letter-spacing: -0.02em;
+      }
+
+      .icon-btn {
+        padding: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #f97316;
+        font-weight: 500;
+        border-radius: 2px;
+        font-size: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        transition: all 0.15s;
+        cursor: pointer;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5);
+      }
+      .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fb923c; }
+      .icon-btn--settings { font-size: 22px; }
+
+      /* ============ 浮動操作說明文字 ============ */
+      /* z-index 調整為 15 (低於 .app-header 的 20):
+         避免與「目前風格來源」下拉選單(z-index:40，屬 header 子層)在同一堆疊層級以 DOM 順序比大小，
+         造成本說明文字覆蓋在選單之上、文字互相干涉重疊的問題。 */
+      .floating-hints {
+        position: absolute;
+        top: 88px;
+        left: 32px;
+        z-index: 15;
+        pointer-events: none;
+        user-select: none;
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        opacity: 0.55;
+        color: #fff;
+        line-height: 1.625;
+        transition: opacity 0.18s ease;
+      }
+      @media (min-width: 768px) { .floating-hints { display: flex; } }
+      /* 風格來源下拉選單展開時，暫時淡出說明文字，雙重保險杜絕殘影/文字互疊 */
+      .floating-hints.hints-suppressed { opacity: 0; }
+
+      /* ============ 底部左側 PRESETS & SAVES 按鈕列 ============ */
+      .bottom-bar {
+        position: absolute;
+        bottom: 24px;
+        left: 24px;
+        z-index: 20;
+        display: flex;
+        gap: 10px;
+        max-width: calc(100% - 48px);
+        user-select: none;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .pill-btn {
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        font-weight: 700;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(9, 9, 11, 0.9);
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      @media (min-width: 768px) { .pill-btn { font-size: 12px; } }
+      .pill-btn:hover { background: #27272a; border-color: rgba(249, 115, 22, 0.4); }
+      .pill-btn:active { transform: scale(0.95); }
+
+      .plain-icon-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        padding: 4px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      /* ============ 彈出小選單 (PRESETS / CUSTOM SAVES) ============ */
+      .popup-menu {
+        position: absolute;
+        bottom: 56px;
+        left: 0;
+        width: 275px;
+        background: rgba(12, 12, 14, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        z-index: 25;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        backdrop-filter: blur(24px);
+      }
+      @media (min-width: 640px) { .popup-menu { width: 310px; } }
+      .popup-menu--saves { width: 295px; }
+      @media (min-width: 640px) { .popup-menu--saves { width: 335px; } }
+
+      .popup-menu-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 8px;
+        margin-bottom: 4px;
+      }
+      .popup-menu-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 700;
+        color: #cbd5e1;
+      }
+      @media (min-width: 768px) { .popup-menu-title { font-size: 11px; } }
+
+      .popup-close-btn {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 4px;
+        background: none;
+        border: none;
+      }
+      .popup-close-btn:hover { color: #fff; }
+
+      .inline-actions { display: flex; align-items: center; gap: 6px; }
+
+      .preset-option {
+        width: 100%;
+        padding: 8px 12px;
+        text-align: left;
+        border-radius: 6px;
+        font-size: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(24, 24, 27, 0.6);
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s;
+      }
+      @media (min-width: 768px) { .preset-option { font-size: 12px; } }
+      .preset-option:hover { background: rgba(39, 39, 42, 0.8); }
+      .preset-option--orange:hover { border-color: rgba(249, 115, 22, 0.5); }
+      .preset-option--teal:hover { border-color: rgba(45, 212, 191, 0.5); }
+      .preset-option--green:hover { border-color: rgba(74, 222, 128, 0.5); }
+      .preset-option--fuchsia:hover { border-color: rgba(232, 121, 249, 0.5); }
+      .preset-option--sky:hover { border-color: rgba(56, 189, 248, 0.5); }
+      .preset-icon { font-size: 12px; }
+
+      .reset-slot-btn {
+        font-size: 9.5px;
+        color: #fb923c;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: #09090b;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+        letter-spacing: 0.02em;
+      }
+      @media (min-width: 768px) { .reset-slot-btn { font-size: 10.5px; } }
+      .reset-slot-btn:hover { color: #fff; border-color: rgba(249, 115, 22, 0.4); }
+      .reset-slot-btn.save-success { color: #34d399; border-color: rgba(52, 211, 153, 0.5); }
+
+      .slots-list { display: flex; flex-direction: column; gap: 10px; }
+
+      .slot-row {
+        display: inline-flex;
+        border-radius: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.75);
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .slot-load-btn {
+        flex: 1;
+        padding: 10px 0 10px 12px;
+        font-size: 11.5px;
+        color: #e2e8f0;
+        transition: color 0.15s;
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        background: none;
+        border-top: none;
+        border-bottom: none;
+        border-left: none;
+      }
+      .slot-load-btn:hover { color: #fff; }
+      .slot-load-btn.is-active { border-right-color: #f97316; color: #fb923c; }
+      .slot-load-btn.is-inactive { color: #cbd5e1; }
+
+      .slot-save-btn {
+        padding: 10px 14px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #fb923c;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+      .slot-save-btn:hover { color: #fdba74; background: rgba(67, 20, 7, 0.2); }
+      .slot-save-btn.save-success,
+      .slot-load-btn-compact.save-success,
+      .slot-save-btn-compact.save-success { color: #34d399; }
+
+      /* ============ 浮動參數設定面板 (可拖曳) ============ */
+      .settings-panel {
+        position: absolute;
+        top: 112px;
+        right: 24px;
+        width: 360px;
+        max-height: calc(100vh - 160px);
+        background: rgba(10, 10, 12, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        z-index: 30;
+        display: flex;
+        flex-direction: column;
+        backdrop-filter: blur(24px);
+        overflow: hidden;
+      }
+      @media (min-width: 768px) { .settings-panel { width: 500px; } }
+
+      /* 缺失2 修補：iPhone 橫向(landscape)時可視高度很矮(約僅 375~430px)，
+         原本 top:112px 再扣掉 max-height 預留的 160px，會吃掉將近可視高度的 2/5，
+         導致設定面板實際可用高度被壓縮到只剩約 3/5，內容捲動空間不足、操作困難。
+         此處針對「矮螢幕」(可視高度 <= 500px，典型手機橫向情境) 大幅縮小上方留白
+         與底部保留空間，讓面板盡量利用整個可視高度，不再被不合理的固定值卡死。 */
+      @media (max-height: 500px) {
+        .settings-panel {
+          top: 8px;
+          max-height: calc(100vh - 16px);
+        }
+      }
+      /* 進一步使用動態視窗高度(dvh)：行動瀏覽器(尤其 Safari)的網址列/工具列會動態顯示或收合，
+         100vh 在這類情況下常常量測不準確(偏大)，改用 100dvh 可以更貼近實際可視區域，
+         避免面板底部被瀏覽器工具列遮擋。透過 @supports 偵測，不支援的舊瀏覽器仍會使用上方的 100vh 版本。 */
+      @supports (height: 100dvh) {
+        @media (max-height: 500px) {
+          .settings-panel { max-height: calc(100dvh - 16px); }
+        }
+      }
+
+      .settings-header {
+        padding: 16px 20px;
+        background: rgba(24, 24, 27, 0.8);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: move;
+        user-select: none;
+        /* 缺失1 修補：iOS Safari / 行動裝置上，若拖曳把手沒有明確宣告 touch-action:none，
+           瀏覽器會把手指在標題列上的移動優先判定為「畫面捲動/縮放」手勢，
+           導致我們在 JS 裡對 touchmove 呼叫的 preventDefault() 常常來不及生效或被忽略，
+           使用者感覺「完全拖不動」。加上 touch-action:none 後，瀏覽器一開始就知道
+           這個元素的觸控手勢要完全交給 JavaScript 處理，才能讓自訂拖曳邏輯正常運作。 */
+        touch-action: none;
+      }
+      .settings-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .settings-header-left .settings-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .settings-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+      /* ============ 標題列 存為自訂風格 圖示按鈕 + 下拉選單 ============ */
+      .header-save-wrap { position: relative; display: flex; align-items: center; }
+      .header-save-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: 230px;
+        background: rgba(12, 12, 14, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        z-index: 40;
+        backdrop-filter: blur(24px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.95);
+      }
+      .header-save-menu-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #cbd5e1;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 6px;
+        margin-bottom: 2px;
+      }
+      .header-save-menu-item {
+        width: 100%;
+        padding: 8px 10px;
+        text-align: left;
+        border-radius: 4px;
+        font-size: 11.5px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(24, 24, 27, 0.7);
+        color: #fb923c;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .header-save-menu-item:hover { background: rgba(249, 115, 22, 0.15); border-color: rgba(249, 115, 22, 0.5); color: #fdba74; }
+      .header-save-menu-item.save-success { color: #34d399 !important; border-color: rgba(52, 211, 153, 0.5) !important; }
+
+      /* ============ 標題列 Reset 按鈕 (依目前風格來源還原參數) ============ */
+      .header-reset-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: rgba(24, 24, 27, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        color: #e2e8f0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .header-reset-btn .reset-icon { font-size: 13px; line-height: 1; }
+      .header-reset-btn:hover { border-color: rgba(249, 115, 22, 0.5); background: rgba(249, 115, 22, 0.12); color: #fdba74; }
+      .header-reset-btn:active { transform: scale(0.96); }
+      .header-reset-btn.reset-success { color: #34d399 !important; border-color: rgba(52, 211, 153, 0.5) !important; }
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f97316;
+        animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        display: inline-block;
+      }
+      .settings-title {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 700;
+        color: #fff;
+      }
+      .settings-close-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: none;
+      }
+      .settings-close-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+      /* Tab 選單 */
+      .tab-bar {
+        display: flex;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.5);
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      @media (min-width: 768px) { .tab-bar { font-size: 12px; } }
+      .tab-btn {
+        flex: 1;
+        padding: 14px 0;
+        text-align: center;
+        border-bottom: 2px solid transparent;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: all 0.15s;
+        background: none;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        font: inherit;
+      }
+      .tab-btn:hover { color: #fff; }
+      .tab-btn.active { border-bottom-color: #f97316; color: #f97316; }
+
+      .tab-content-area {
+        padding: 10px;  /* 20px; */
+        flex: 1;
+        overflow-y: auto;
+        font-size: 12px; /* 14px; */
+      }
+      .tab-content-area > * + * { margin-top: 24px; }
+      /*.tab-panel { } */
+
+      /* Tab1: 顏色 */
+      .colors-head {
+        display: flex;
+        flex-direction: column;
+        gap: 4px; /* 8px; */
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 8px;
+      }
+      @media (min-width: 640px) { .colors-head { flex-direction: row; align-items: center; } }
+      .colors-head-title { font-size: 12.5px; color: #cbd5e1; font-weight: 700; letter-spacing: 0.02em; }
+
+      .sync-actions { display: flex; gap: 8px; font-size: 10.5px; text-transform: uppercase; font-weight: 600; }
+      .sync-btn {
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.05);
+        transition: all 0.15s;
+        cursor: pointer;
+      }
+      .sync-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+      .color-matrix {
+        background: rgba(0, 0, 0, 0.45);
+        border-radius: 6px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      .color-matrix-head {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 4px;
+        text-align: center;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: #94a3b8;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .color-row-label {
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #fb923c;
+        font-weight: 700;
+      }
+      .color-row-label--blue { color: #60a5fa; }
+
+      .swatch-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; } /*  gap: 8px; */
+      .swatch-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px; /* 6px */
+        background: rgba(9, 9, 11, 0.8);
+        padding: 2px; /* 6px */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+      }
+      .swatch-cell--sep { border-color: rgba(249, 115, 22, 0.3); }
+      .swatch-cell--colon { border-color: rgba(59, 130, 246, 0.3); }
+      .swatch-input {
+        width:28px;  /* 32px */
+        height: 28px; /* 32px */
+        border-radius: 1px; /* 2px */
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: transparent;
+        padding: 0;
+      }
+      .swatch-label { font-size: 10.5px; font-weight: 700; color: rgba(255, 255, 255, 0.75); }
+      .swatch-label--sep { color: #fb923c; }
+      .swatch-label--colon { color: #60a5fa; }
+      .swatch-hex {
+        font-size: 8.5px;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: -0.02em;
+        user-select: all;
+        font-weight: 600;
+      }
+      @media (min-width: 768px) { .swatch-hex { font-size: 9px; } }
+      .swatch-hex--sep { color: rgba(251, 146, 60, 0.6); }
+      .swatch-hex--colon { color: rgba(147, 197, 253, 0.6); }
+
+      .bus-matrix-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #cbd5e1;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 6px 0;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        line-height: 1.5;
+      }
+      @media (min-width: 768px) { .bus-matrix-label { font-size: 11px; } }
+
+      .hue-shifter { padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+      .field-label { font-size: 12px; font-weight: 600; color: #cbd5e1; display: block; letter-spacing: 0.02em; }
+      @media (min-width: 768px) { .field-label { font-size: 13px; } }
+
+      .btn-row { display: flex; gap: 8px; }
+      .mutate-btn {
+        flex: 1;
+        padding: 10px 0;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.75);
+        transition: background-color 0.15s, color 0.15s;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      @media (min-width: 768px) { .mutate-btn { font-size: 12px; } }
+      .mutate-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+      /* Tab2 / Tab3: 滑桿欄位共用樣式 */
+      .field-row { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 0.02em; }
+      @media (min-width: 768px) { .field-row { font-size: 14px; } }
+      .field-name { color: #cbd5e1; font-weight: 600; }
+      .field-name-muted { color: rgba(255, 255, 255, 0.5); }
+      .field-value { color: #fb923c; font-weight: 700; font-size: 14px; }
+      @media (min-width: 768px) { .field-value { font-size: 16px; } }
+      .field-value-sm { color: #fb923c; font-weight: 700; font-size: 12px; }
+      @media (min-width: 768px) { .field-value-sm { font-size: 14px; } }
+
+      .range-slider {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 9999px;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        accent-color: #f97316;
+      }
+      .range-slider:hover { background: rgba(255, 255, 255, 0.2); }
+
+      .field-note {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      @media (min-width: 768px) { .field-note { font-size: 11px; } }
+
+      .flicker-box {
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      .flicker-box-head { display: flex; align-items: center; justify-content: space-between; }
+      .flicker-title { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: #e2e8f0; }
+      @media (min-width: 768px) { .flicker-title { font-size: 14px; } }
+
+      /* 自訂開關 Toggle Switch (取代 Tailwind peer 寫法) */
+      .switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; user-select: none; }
+      .switch-input {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .switch-track {
+        width: 40px;
+        height: 22px;
+        background: #27272a;
+        border-radius: 9999px;
+        position: relative;
+        transition: background-color 0.15s;
+        display: inline-block;
+      }
+      .switch-track::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        background: #a1a1aa;
+        border: 1px solid #a1a1aa;
+        border-radius: 9999px;
+        height: 18px;
+        width: 18px;
+        transition: all 0.15s;
+      }
+      .switch-input:checked + .switch-track { background: #ea580c; }
+      .switch-input:checked + .switch-track::after { transform: translateX(18px); border-color: #fff; }
+
+      /* Tab3: 桌面反射 */
+      .select-field {
+        width: 100%;
+        background: #18181b;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 12px 14px;
+        font-size: 14px;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      .select-field:focus { outline: none; border-color: #f97316; }
+      .select-option { background: #09090b; }
+
+      /* 設定面板底部 (SLOTS + FOOTER) */
+      .settings-footer {
+        padding: 2px 12px 2px 12px;/* padding: 20px; */
+        background: rgba(24, 24, 27, 0.98);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        user-select: none;
+      }
+      .slots-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+      .slot-row-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        font-size: 11px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      .slot-load-btn-compact {
+        flex: 1;
+        padding: 8px 0;
+        text-align: center;
+        color: #cbd5e1;
+        transition: all 0.15s;
+        font-size: 11.5px;
+        font-weight: 500;
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+      .slot-load-btn-compact:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+      .slot-load-btn-compact.is-active { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
+      .slot-divider { width: 1px; height: 16px; background: rgba(255, 255, 255, 0.2); }
+      .slot-save-btn-compact {
+        padding: 8px 10px;
+        color: #fb923c;
+        transition: all 0.15s;
+        font-size: 11px;
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+      .slot-save-btn-compact:hover { color: #fdba74; background: rgba(255, 255, 255, 0.05); }
+
+      .settings-footer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .reset-factory-btn {
+        padding: 6px 8px;  /* padding: 8px 14px; */
+        border-radius: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.7);
+        transition: all 0.15s;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .reset-factory-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div> <!-- Standard div for the app assets if any -->
+    
+    <!-- Scanline & Vignette atmospheric effects -->
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- MAIN WEBGL CONTAINER -->
+    <div id="webgl-container" class="webgl-container"></div>
+
+    <!-- HEADER BAR -->
+    <header class="app-header">
+      <div class="header-left">
+        <!-- 主頁左上角 目前風格來源 可選按鈕 (點擊展開 8 種風格清單套用) -->
+        <div class="style-selector-wrap">
+          <button id="style-selector-btn" onclick="toggleStyleSelectorMenu(event)" title="切換風格來源 / Switch Style" class="style-selector-btn font-sans">
+            <span class="status-dot"></span>
+            <span id="header-style-label">custom1 / 自訂風格1</span>
+          </button>
+          <div id="style-selector-menu" class="style-selector-menu hidden">
+            <div class="style-menu-title font-mono">🎨 出廠預設 / Preset</div>
+            <button data-style-key="classic" onclick="selectStyleFromHeader('theme', 'classic')" class="style-menu-item font-sans">
+              <span class="preset-icon">🔸</span> CLASSIC / 經典輝光
+            </button>
+            <button data-style-key="cyberpunk" onclick="selectStyleFromHeader('theme', 'cyberpunk')" class="style-menu-item font-sans">
+              <span class="preset-icon">🚀</span> CYBER / 賽博科幻
+            </button>
+            <button data-style-key="atomic" onclick="selectStyleFromHeader('theme', 'atomic')" class="style-menu-item font-sans">
+              <span class="preset-icon">🟢</span> ATOMIC / 原子射線
+            </button>
+            <button data-style-key="prism" onclick="selectStyleFromHeader('theme', 'prism')" class="style-menu-item font-sans">
+              <span class="preset-icon">🌈</span> PRISM / 彩虹極光
+            </button>
+            <button data-style-key="frozen" onclick="selectStyleFromHeader('theme', 'frozen')" class="style-menu-item font-sans">
+              <span class="preset-icon">❄️</span> FROZEN / 極地白光
+            </button>
+            <div class="style-menu-divider"></div>
+            <div class="style-menu-title font-mono">📂 自訂風格 / Custom</div>
+            <button data-style-key="custom1" onclick="selectStyleFromHeader('custom', 1)" class="style-menu-item font-sans">
+              <span class="preset-icon">📂</span> custom1 / 自訂風格1
+            </button>
+            <button data-style-key="custom2" onclick="selectStyleFromHeader('custom', 2)" class="style-menu-item font-sans">
+              <span class="preset-icon">📂</span> custom2 / 自訂風格2
+            </button>
+            <button data-style-key="custom3" onclick="selectStyleFromHeader('custom', 3)" class="style-menu-item font-sans">
+              <span class="preset-icon">📂</span> custom3 / 自訂風格3
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-status font-mono">
+          <span class="status-label-active">System Active</span>
+          <span class="status-label-temp">42.5°C Core Temp</span>
+        </div>
+         <!-- Curved return arrow icon -->
+        <button onclick="history.back()" class="plain-icon-btn">
+        <svg width="32px" height="32px"  fill="none" viewBox="-4 -4 32 32" stroke="white" stroke-width="2.0">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+        </svg>      
+        </button>
+		
+        <button id="config-toggle-btn" onclick="togglePopup()" title="Settings" class="icon-btn icon-btn--settings">
+          ⚙
+        </button>
+      </div>
+    </header>
+
+
+    <!-- FLOATING INTERACTION INSTRUCTIONS -->
+    <div class="floating-hints font-mono">
+	<div>Advanced Filament Chronometer</div>
+      <div>[左鍵拖曳 / Left Click] 旋轉角度</div>
+      <div>[右鍵拖曳 / Right Click] 移動相機</div>
+      <div>[滾輪縮放 / Scroll] 觀測鏡頭</div>
+    </div>
+
+    <!-- PRESETS & SAVES BAR (BOTTOM LEFT COZY PILOTS) class="bottom-bar" togglePresetsPopup(event) toggleCustomSavesPopup(event)-->
+
+
+    <!-- 設定頁可拖移 POP-UP FLOATING PARAMETERS DASHBOARD (DRAGGABLE) -->
+    <div id="popup-control" class="settings-panel hidden" style="box-shadow: 0 20px 50px rgba(0,0,0,0.95);">
+      
+      <!-- Pop-up Header (Draggable Zone) -->
+      <div id="popup-header" class="settings-header">
+        <div class="settings-header-left">
+          <span class="status-dot"></span>
+          <span id="settings-title-text" class="settings-title font-sans">custom1 / 自訂風格1</span>
+        </div>
+        <div class="settings-header-right">
+          <!-- Reset 按鈕:依目前風格來源還原對應參數 (5種出廠預設 -> THEMES[...]; custom1 -> DEFAULT_SETTINGS; custom2/custom3 -> 隱藏不顯示) -->
+          <button id="header-reset-btn" onclick="resetCurrentStyle()" title="還原目前風格的參數 / Reset current style" class="header-reset-btn font-sans">
+            Reset<span class="reset-icon">🧿</span>
+          </button>
+          <!-- Save-as-Custom icon button (replaces old bottom save block) -->
+          <div class="header-save-wrap">
+            <button id="header-save-btn" onclick="toggleHeaderSaveMenu(event)" title="儲存目前設定到自訂風格 / Save as Custom" class="settings-close-btn">
+              💾
+            </button>
+            <!-- Save-as-Custom dropdown menu -->
+            <div id="header-save-menu" class="header-save-menu hidden">
+              <div class="header-save-menu-title font-mono">💾 儲存到自訂風格 / Save as Custom</div>
+              <button id="header-save-item-1" onclick="saveCustomPresetFromHeader(1)" class="header-save-menu-item font-sans">
+                Save as custom1 / 存入自訂風格1
+              </button>
+              <button id="header-save-item-2" onclick="saveCustomPresetFromHeader(2)" class="header-save-menu-item font-sans">
+                Save as custom2 / 存入自訂風格2
+              </button>
+              <button id="header-save-item-3" onclick="saveCustomPresetFromHeader(3)" class="header-save-menu-item font-sans">
+                Save as custom3 / 存入自訂風格3
+              </button>
+            </div>
+          </div>
+          <button onclick="togglePopup()" class="settings-close-btn">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Selectors -->
+      <div class="tab-bar font-sans">
+        <button onclick="switchTab('colors')" id="tab-btn-colors" class="tab-btn active">
+          🎨 Filament / 顏色
+        </button>
+        <button onclick="switchTab('effects')" id="tab-btn-effects" class="tab-btn">
+          ✨ Optics / 發光
+        </button>
+        <button onclick="switchTab('desk')" id="tab-btn-desk" class="tab-btn">
+          🪵 Reflection / 倒影
+        </button>
+      </div>
+
+      <!-- Tab Contents Area -->
+      <div class="tab-content-area custom-scrollbar">
+        
+        <!-- ======================= TAB 1: COLORS (16 COLORS) ======================= -->
+        <div id="tab-content-colors" class="tab-panel stack">
+          <div class="colors-head">
+            <!-- Independent 16-Way Filaments / 管孔發光設計： -->
+            <span class="colors-head-title font-sans">Independent color / 光彩設計：</span>
+            <!-- Shortcut Sync buttons -->
+            <div class="sync-actions font-sans">
+              <button onclick="syncAllColors('digits')" class="sync-btn">
+                Digits 1 color
+              </button>
+              <button onclick="syncAllColors('bases')" class="sync-btn">
+                Bases 1 color
+              </button>
+            </div>
+          </div>
+          
+          <!-- Visual Mapping Grid -->
+          <div class="color-matrix stack">
+            <div class="color-matrix-head">
+              <div>H1</div>
+              <div>H2</div>
+              <div>C1</div>
+              <div>M1</div>
+              <div>M2</div>
+              <div>C2</div>
+              <div>S1</div>
+              <div>S2</div>
+            </div>
+            
+            <!-- 6 Digits + 2 Colons Color Selection -->
+            <div class="stack">
+              <!-- Grid Row 1: Filaments (Neon Tubes) -->
+              <div class="stack-sm">
+                <div class="color-row-label font-sans">❶ Filament Glow / 燈管特調：</div>
+                <div class="swatch-grid">
+                  <!-- Digit 1 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-0" value="#ff4400" onchange="updateColorParam('digitColors', 0, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D1</span>
+                    <span id="hex-digit-0" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                  <!-- Digit 2 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-1" value="#ff4400" onchange="updateColorParam('digitColors', 1, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D2</span>
+                    <span id="hex-digit-1" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                  <!-- Colon 1 -->
+                  <div class="swatch-cell swatch-cell--sep">
+                    <input type="color" id="color-sep-0" value="#ffa700" onchange="updateColorParam('separatorColors', 0, this.value)" class="swatch-input" />
+                    <span class="swatch-label swatch-label--sep font-mono">C1</span>
+                    <span id="hex-sep-0" class="swatch-hex swatch-hex--sep font-mono">#FFA700</span>
+                  </div>
+                  <!-- Digit 3 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-2" value="#ff4400" onchange="updateColorParam('digitColors', 2, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D3</span>
+                    <span id="hex-digit-2" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                  <!-- Digit 4 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-3" value="#ff4400" onchange="updateColorParam('digitColors', 3, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D4</span>
+                    <span id="hex-digit-3" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                  <!-- Colon 2 -->
+                  <div class="swatch-cell swatch-cell--sep">
+                    <input type="color" id="color-sep-1" value="#ffa700" onchange="updateColorParam('separatorColors', 1, this.value)" class="swatch-input" />
+                    <span class="swatch-label swatch-label--sep font-mono">C2</span>
+                    <span id="hex-sep-1" class="swatch-hex swatch-hex--sep font-mono">#FFA700</span>
+                  </div>
+                  <!-- Digit 5 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-4" value="#ff4400" onchange="updateColorParam('digitColors', 4, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D5</span>
+                    <span id="hex-digit-4" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                  <!-- Digit 6 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-digit-5" value="#ff4400" onchange="updateColorParam('digitColors', 5, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">D6</span>
+                    <span id="hex-digit-5" class="swatch-hex font-mono">#FF4400</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Grid Row 2: Bottom LED Ring Glow (Base glow) -->
+              <div class="stack-sm" style="padding-top: 8px;">
+                <div class="color-row-label color-row-label--blue font-sans">❷ Base Glowing Chassis / 底座燈孔：</div>
+                <div class="swatch-grid">
+                  <!-- Base 1 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-0" value="#0088ff" onchange="updateColorParam('baseColors', 0, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B1</span>
+                    <span id="hex-base-0" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                  <!-- Base 2 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-1" value="#0088ff" onchange="updateColorParam('baseColors', 1, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B2</span>
+                    <span id="hex-base-1" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                  <!-- Base 3 (Colon 1 Base) -->
+                  <div class="swatch-cell swatch-cell--colon">
+                    <input type="color" id="color-base-2" value="#ff00ff" onchange="updateColorParam('baseColors', 2, this.value)" class="swatch-input" />
+                    <span class="swatch-label swatch-label--colon font-mono">B3</span>
+                    <span id="hex-base-2" class="swatch-hex swatch-hex--colon font-mono">#FF00FF</span>
+                  </div>
+                  <!-- Base 4 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-3" value="#0088ff" onchange="updateColorParam('baseColors', 3, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B4</span>
+                    <span id="hex-base-3" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                  <!-- Base 5 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-4" value="#0088ff" onchange="updateColorParam('baseColors', 4, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B5</span>
+                    <span id="hex-base-4" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                  <!-- Base 6 (Colon 2 Base) -->
+                  <div class="swatch-cell swatch-cell--colon">
+                    <input type="color" id="color-base-5" value="#ff00ff" onchange="updateColorParam('baseColors', 5, this.value)" class="swatch-input" />
+                    <span class="swatch-label swatch-label--colon font-mono">B6</span>
+                    <span id="hex-base-5" class="swatch-hex swatch-hex--colon font-mono">#FF00FF</span>
+                  </div>
+                  <!-- Base 7 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-6" value="#0088ff" onchange="updateColorParam('baseColors', 6, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B7</span>
+                    <span id="hex-base-6" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                  <!-- Base 8 -->
+                  <div class="swatch-cell">
+                    <input type="color" id="color-base-7" value="#0088ff" onchange="updateColorParam('baseColors', 7, this.value)" class="swatch-input" />
+                    <span class="swatch-label font-mono">B8</span>
+                    <span id="hex-base-7" class="swatch-hex font-mono">#0088FF</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bus-matrix-label font-mono">
+              🌐 Multichannel 16-Way Independent Bus Matrix
+            </div>
+          </div>
+          
+          <!-- Quick Hue Shifter  Chaotic Quantum Mutation / 混亂色彩突變-->
+          <div class="hue-shifter stack-sm">
+            <label class="field-label font-sans">⚡ AI Quantum Mutation / AI 色彩混搭：</label>
+            <div class="btn-row">
+              <button onclick="mutateColors('digits')" class="mutate-btn font-sans">
+                🔀 Mutate Digits
+              </button>
+              <button onclick="mutateColors('bases')" class="mutate-btn font-sans">
+                🔀 Mutate Bases
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================= TAB 2: GLOW EFFECTS ======================= -->
+        <div id="tab-content-effects" class="tab-panel stack-lg hidden">
+          <!-- Glow Intensity -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">💡 Emissive Power / 輝光亮度</span>
+              <span id="val-glow-boost" class="field-value">1.50</span>
+            </div>
+            <input type="range" id="slider-glow-boost" min="0.3" max="5.5" step="0.05" value="1.5" oninput="updateEffectSlider('glowIntensity', this.value, 'val-glow-boost')" class="range-slider" />
+          </div>
+
+          <!-- Glow Blur/Shadow radius -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">🔆 Neon Spread / 霓虹氣化暈散</span>
+              <span id="val-glow-spread" class="field-value">25 px</span>
+            </div>
+            <input type="range" id="slider-glow-spread" min="8" max="80" step="1" value="25" oninput="updateEffectSlider('glowSpread', this.value, 'val-glow-spread', ' px')" class="range-slider" />
+          </div>
+
+          <!-- Corona Blur -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">🌀 Outer Corona / 外層離子光圈</span>
+              <span id="val-glow-corona" class="field-value">35 px</span>
+            </div>
+            <input type="range" id="slider-glow-corona" min="15" max="100" step="1" value="35" oninput="updateEffectSlider('glowOuterBlur', this.value, 'val-glow-corona', ' px')" class="range-slider" />
+          </div>
+
+          <!-- Line Thickness -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">📏 Filament Line / 燈芯細管線徑</span>
+              <span id="val-core-thick" class="field-value">2.0 mm</span>
+            </div>
+            <input type="range" id="slider-core-thick" min="0.8" max="5.5" step="0.1" value="2.0" oninput="updateEffectSlider('coreThickness', this.value, 'val-core-thick', ' mm')" class="range-slider" />
+          </div>
+
+          <!-- Unlit opacity -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">🕸️ Shadow Wire / 未點亮管絲暗色度</span>
+              <span id="val-unlit-op" class="field-value">5.0 %</span>
+            </div>
+            <input type="range" id="slider-unlit-op" min="0" max="20" step="0.5" value="5" oninput="updateEffectSlider('unlitOpacity', this.value/100, 'val-unlit-op', ' %', this.value)" class="range-slider" />
+            <p class="field-note font-mono">Simulates the visual presence of nested unlit cathode grid filaments.</p>
+          </div>
+
+          <!-- Organic flickering -->
+          <div class="flicker-box stack">
+            <div class="flicker-box-head">
+              <span class="flicker-title font-sans">🔥 Plasma Discharge Fluctuation / 顫動微秒</span>
+              <label class="switch">
+                <input type="checkbox" id="check-ficker" checked onchange="updateFlickerToggle(this.checked)" class="switch-input">
+                <div class="switch-track"></div>
+              </label>
+            </div>
+            <div class="stack-sm">
+              <div class="field-row font-sans">
+                <span class="field-name-muted">organic amplitude / 能量頻寬</span>
+                <span id="val-flicker-amp" class="field-value-sm">4.0 %</span>
+              </div>
+              <input type="range" id="slider-flicker-amp" min="0" max="15" step="0.5" value="4" oninput="updateEffectSlider('flickerIntensity', this.value/100, 'val-flicker-amp', ' %', this.value)" class="range-slider" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================= TAB 3: TABLE REFLECTION ======================= -->
+        <div id="tab-content-desk" class="tab-panel stack-lg hidden">
+          <!-- Reflection Opacity -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">🪞 Desk Refraction / 桌面反光強度</span>
+              <span id="val-ref-intensity" class="field-value">70 %</span>
+            </div>
+            <input type="range" id="slider-ref-intensity" min="0" max="100" step="5" value="70" oninput="updateEffectSlider('reflectionIntensity', this.value/100, 'val-ref-intensity', ' %', this.value)" class="range-slider" />
+          </div>
+
+          <!-- Reflection Blur / Distance decay -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">💨 Specular Roughness / 反光衰減模糊</span>
+              <span id="val-ref-rough" class="field-value">60 %</span>
+            </div>
+            <input type="range" id="slider-ref-rough" min="10" max="100" step="5" value="60" oninput="updateEffectSlider('reflectionBlur', this.value/100, 'val-ref-rough', ' %', this.value)" class="range-slider" />
+          </div>
+
+          <!-- Reflection tilt angle -->
+          <div class="stack-xs">
+            <div class="field-row font-sans">
+              <span class="field-name">📐 Projection Angle / 電致折光傾角</span>
+              <span id="val-ref-tilt" class="field-value">25 °</span>
+            </div>
+            <input type="range" id="slider-ref-tilt" min="-60" max="60" step="2" value="25" oninput="updateEffectSlider('reflectionAngle', this.value, 'val-ref-tilt', ' °')" class="range-slider" />
+            <p class="field-note font-mono">Modulates perspective matrix transformation of desk-level light projections.</p>
+          </div>
+
+          <!-- Desk Material Type -->
+          <div class="stack-xs">
+            <label class="field-label font-sans">🌳 Quantum Refractive Substrate / 桌面材質貼皮：</label>
+            <select id="select-desk-style" onchange="updateDeskStyle(this.value)" class="select-field font-sans">
+              <option value="rosewood" class="select-option">🍂 頂級酸枝紅木 / Luxury Rosewood</option>
+              <option value="obsidian" class="select-option">🌌 磨砂黑曜石板 / Matte Obsidian</option>
+              <option value="cobalt" class="select-option">💿 深海鈷藍鋼板 / Cobalt Steel</option>
+              <option value="brass" class="select-option">👑 拉絲拉紋黃銅 / Brushed Brass</option>
+              <option value="carbon" class="select-option">🏁 碳纖卡本矩陣 / Carbon Matrix</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Settings panel footer -->
+      <div class="settings-footer">
+        <!-- Save-as-Custom slots moved to header icon (💾) button, top-left of close button -->
+        <div class="settings-footer-row font-mono">
+          <span>Chrono Engine v2.2.0</span>
+          <button onclick="resetSettings()" class="reset-factory-btn">
+            Reset to Factory
+          </button>
+		  
+        </div>
+      </div>
+
+    </div>
+	
+	
+	
+    <!-- MAIN INTERACTIVE NIXIE LOGIC LOADER (Inline Vanilla ES6 Engine) -->
+	<script src="./3DGlowTubeClock.js"></script>
+  </body>
+</html>
+
+    
